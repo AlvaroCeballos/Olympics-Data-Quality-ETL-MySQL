@@ -1,0 +1,6 @@
+year,type,discipline,event,as,athlete_id,noc,team,place,tied
+1912.0,Summer,Tennis,"Singles, Men (Olympic)",Jean-FranÃ§ois Blanchy,1,FRA,,17.0,True
+1912.0,Summer,Tennis,"Doubles, Men (Olympic)",Jean-FranÃ§ois Blanchy,1,FRA,Jean Montariol,,False
+1920.0,Summer,Tennis,"Singles, Men (Olympic)",Jean-FranÃ§ois Blanchy,1,FRA,,32.0,True
+1920.0,Summer,Tennis,"Doubles, Mixed (Olympic)",Jean-FranÃ§ois Blanchy,1,FRA,Jeanne Vaussard,8.0,True
+1920.0,Summer,Tennis,"Doubles, Men (Olympic)",Jean-FranÃ§ois Blanchy,1,FRA,Jacques Brugnon,4.0,False

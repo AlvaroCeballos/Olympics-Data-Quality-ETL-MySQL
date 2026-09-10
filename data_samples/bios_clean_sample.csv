@@ -1,0 +1,6 @@
+athlete_id,name,born_date,born_city,born_region,born_country,NOC,height_cm,weight_kg,died_date
+1,Jean-FranÃ§ois Blanchy,1886-12-12,Bordeaux,Gironde,FRA,France,,,1960-10-02
+2,Arnaud Boetsch,1969-04-01 00:00:00,Meulan,Yvelines,FRA,France,183.0,76.0,
+3,Jean Borotra,1898-08-13,Biarritz,PyrÃ©nÃ©es-Atlantiques,FRA,France,183.0,76.0,1994-07-17
+4,Jacques Brugnon,1895-05-11,Paris VIIIe,Paris,FRA,France,168.0,64.0,1978-03-20
+5,Albert Canet,1878-04-17,Wandsworth,England,GBR,France,,,1930-07-25
