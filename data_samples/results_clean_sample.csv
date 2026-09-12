@@ -4,3 +4,13 @@ year,type,discipline,event,as,athlete_id,noc,team,place,tied
 1920.0,Summer,Tennis,"Singles, Men (Olympic)",Jean-FranÃ§ois Blanchy,1,FRA,,32.0,True
 1920.0,Summer,Tennis,"Doubles, Mixed (Olympic)",Jean-FranÃ§ois Blanchy,1,FRA,Jeanne Vaussard,8.0,True
 1920.0,Summer,Tennis,"Doubles, Men (Olympic)",Jean-FranÃ§ois Blanchy,1,FRA,Jacques Brugnon,4.0,False
+1996.0,Summer,Tennis,"Singles, Men (Olympic)",Arnaud Boetsch,2,FRA,,17.0,True
+1996.0,Summer,Tennis,"Doubles, Men (Olympic)",Arnaud Boetsch,2,FRA,Guillaume Raoux,17.0,True
+1924.0,Summer,Tennis,"Singles, Men (Olympic)",Jean Borotra,3,FRA,,4.0,False
+1924.0,Summer,Tennis,"Doubles, Mixed (Olympic)",Jean Borotra,3,FRA,Marguerite Billout,15.0,True
+1924.0,Summer,Tennis,"Doubles, Men (Olympic)",Jean Borotra,3,FRA,RenÃ© Lacoste,3.0,False
+1920.0,Summer,Tennis,"Singles, Men (Olympic)",Jacques Brugnon,4,FRA,,9.0,True
+1920.0,Summer,Tennis,"Doubles, Men (Olympic)",Jacques Brugnon,4,FRA,Jean-FranÃ§ois Blanchy,4.0,False
+1924.0,Summer,Tennis,"Doubles, Men (Olympic)",Jacques Brugnon,4,FRA,Henri Cochet,2.0,False
+1912.0,Summer,Tennis,"Singles, Men (Olympic)",Albert Canet,5,FRA,,17.0,True
+1912.0,Summer,Tennis,"Doubles, Mixed (Olympic)",Albert Canet,5,FRA,Marguerite Broquedis,3.0,False

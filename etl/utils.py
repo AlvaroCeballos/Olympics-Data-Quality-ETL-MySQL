@@ -67,6 +67,49 @@ ATHLETE_EVENTS_DATALAB = os.path.join(_DATA_DIR, 'athlete_events_datalab_sample.
 DDL_SCRIPT = os.path.join(_PROJECT_ROOT, 'olimpiada2s.sql')
 
 
+def resolve_data_file(filename_or_base):
+    """
+    Resuelve la ruta a un archivo de datos buscando en multiples ubicaciones.
+    Prioriza archivos completos sobre muestras (_sample.csv).
+    
+    Args:
+        filename_or_base: Nombre del archivo (ej: 'noc_regions.csv', 'bios.csv')
+                          o base sin extension (ej: 'noc_regions')
+    
+    Returns:
+        Ruta absoluta al archivo existente, o None si no se encuentra.
+    """
+    base = filename_or_base
+    if base.endswith('.csv'):
+        base = base[:-4]
+    if base.endswith('_sample'):
+        base = base[:-7]
+    
+    candidates = [
+        # 1. Archivo completo en directorio raiz
+        os.path.join(_PROJECT_ROOT, f"{base}.csv"),
+        # 2. Archivo completo en Olympics-Dataset/clean-data/
+        os.path.join(_PROJECT_ROOT, 'Olympics-Dataset', 'clean-data', f"{base}.csv"),
+        # 3. Archivo completo en Olympics-Dataset/
+        os.path.join(_PROJECT_ROOT, 'Olympics-Dataset', f"{base}.csv"),
+        # 4. Archivo completo en data_samples/
+        os.path.join(_DATA_DIR, f"{base}.csv"),
+        # 5. Archivo muestra en data_samples/
+        os.path.join(_DATA_DIR, f"{base}_sample.csv"),
+        # 6. Variantes con extensiones dobles (ej: results.csv_sample.csv)
+        os.path.join(_DATA_DIR, f"{base}.csv_sample.csv"),
+        # 7. Exactamente como se paso
+        os.path.join(_DATA_DIR, filename_or_base),
+        os.path.join(_PROJECT_ROOT, filename_or_base),
+    ]
+    
+    for path in candidates:
+        if os.path.isfile(path):
+            return os.path.abspath(path)
+    
+    return None
+
+
 # =====================================================================
 # CONEXIÓN A MYSQL
 # =====================================================================

@@ -193,3 +193,58 @@ CREATE INDEX idx_pob_anio       ON poblacion_pais(anio);
 -- Semilla del catalogo de medallas.
 -- ---------------------------------------------------------------------
 INSERT INTO medalla (tipo) VALUES ('Gold'),('Silver'),('Bronze'),('NA');
+
+
+USE olimpiadas;
+-- Listar todas las tablas creadas en el esquema
+SHOW FULL TABLES;
+
+SELECT * FROM medalla;
+
+
+SELECT 'pais' AS tabla, COUNT(*) AS total FROM pais
+UNION ALL SELECT 'noc', COUNT(*) FROM noc
+UNION ALL SELECT 'sede', COUNT(*) FROM sede
+UNION ALL SELECT 'olimpiada', COUNT(*) FROM olimpiada
+UNION ALL SELECT 'deporte', COUNT(*) FROM deporte
+UNION ALL SELECT 'disciplina', COUNT(*) FROM disciplina
+UNION ALL SELECT 'evento', COUNT(*) FROM evento
+UNION ALL SELECT 'equipo', COUNT(*) FROM equipo
+UNION ALL SELECT 'atleta', COUNT(*) FROM atleta
+UNION ALL SELECT 'participacion', COUNT(*) FROM participacion
+UNION ALL SELECT 'medalla', COUNT(*) FROM medalla
+UNION ALL SELECT 'poblacion_pais', COUNT(*) FROM poblacion_pais;
+
+SELECT id_pais, codigo_pais, nombre, nombre_alt, region 
+FROM pais 
+ORDER BY id_pais;
+
+
+-- Demuestra que los Comités Olímpicos están correctamente vinculados a su país
+SELECT 
+    n.id_noc,
+    n.codigo_noc, 
+    n.nombre_noc, 
+    n.notas,
+    p.id_pais,
+    p.codigo_pais, 
+    p.nombre AS nombre_pais_asociado
+FROM noc n
+JOIN pais p ON n.id_pais = p.id_pais
+ORDER BY n.id_noc;
+
+-- Resumen de años y conteo de registros por país (pivoteo de 1960 a 2023)
+SELECT 
+    p.codigo_pais, 
+    p.nombre, 
+    COUNT(*) AS total_anios_registrados, 
+    MIN(pp.anio) AS anio_inicio, 
+    MAX(pp.anio) AS anio_fin,
+    MIN(pp.poblacion) AS pob_minima,
+    MAX(pp.poblacion) AS pob_maxima
+FROM poblacion_pais pp
+JOIN pais p ON pp.id_pais = p.id_pais
+GROUP BY p.codigo_pais, p.nombre
+ORDER BY p.nombre;
+
+

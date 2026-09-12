@@ -109,6 +109,43 @@ Secuencia estricta respetando dependencias FK:
 - **Decisión:** Los datos son idénticos (confirmado comparando samples). Fuente 4 se usa únicamente para validación cruzada, no se carga de forma independiente.
 - **Razón:** Evita duplicación de registros.
 
+## DT-016: Estrategia de homologación y resolución de claves foráneas entre `pais` y `noc`
+
+- **Decisión:** 
+  1. Se carga primero `populations.csv` hacia la tabla `pais` utilizando el código estándar de 3 letras (ISO 3166-1 alpha-3).
+  2. Luego se complementa con `noc_regions.csv`: si el código NOC ya existe en `pais`, se completan sus atributos `region` y `nombre_alt` (de la columna `notes`); si no existe, se crea la entidad territorial en `pais` para asegurar integridad.
+  3. Para la tabla `noc`, el campo `id_pais` se resuelve mediante un lookup jerárquico en memoria: coincidencia por código (NOC = ISO) → coincidencia por nombre normalizado → coincidencia por nombre alternativo.
+  4. Si una delegación especial o histórica no corresponde a un territorio soberano (ej: equipo de refugiados `ROT`, equipo unificado `EUN`), `id_pais` permanece como `NULL` de acuerdo con la definición del DDL (`id_pais INT NULL`).
+- **Razón:** El DDL separa deliberadamente `pais` (entidad geográfica) de `noc` (entidad deportiva del COI). Esta jerarquía de resolución garantiza que ningún NOC quede desvinculado por simples discrepancias de siglas (ej: `ARU` en NOC vs `ABW` en ISO).
+
+## DT-017: Tratamiento de agregados regionales en `populations.csv`
+
+- **Decisión:** Los registros agregados del Banco Mundial (ej: *"Africa Eastern and Southern"*, *"World"*, *"Latin America & Caribbean"*, *"Euro area"*) se conservan en la tabla `pais` asignándoles el valor `region = 'Agregado Regional'`.
+- **Razón:** Regla 4 y 7 de la cátedra (*"Prohibido descartar columnas o entidades que contengan datos útiles"*). Al mantener estos agregados identificados, se evita descartar tuplas y se preserva íntegra la serie temporal de datos del Banco Mundial en `poblacion_pais` sin provocar violaciones de llave foránea.
+
+## DT-018: Desnormalización de series demográficas con `pandas.melt()`
+
+- **Decisión:** La matriz ancha de 64 columnas anuales (`1960` a `2023`) de `populations.csv` se transforma a formato relacional largo `(id_pais, anio, poblacion)` mediante `pandas.melt()`. Se omiten exclusivamente las filas con valores `NaN` o nulos de población.
+- **Razón:** El modelo relacional en 3NF define la clave primaria compuesta `PRIMARY KEY (id_pais, anio)`. Almacenar registros con población nula saturaría la base de datos sin aportar valor analítico para el cálculo de métricas per cápita.
+
+## DT-019: Desglose semántico multinivel de ubicación de nacimiento en `atleta`
+
+- **Decisión:** El atributo compuesto `Born` se descompone en tres columnas atómicas: `ciudad_nac`, `region_nac` y `id_pais_nac`. Se implementó un parser con soporte jerárquico multinivel:
+  1. *Tres niveles:* `"in Ciudad, Región (CÓDIGO)"` $\rightarrow$ `ciudad_nac`, `region_nac`, `id_pais_nac`.
+  2. *Dos niveles:* `"in Ciudad (CÓDIGO)"` $\rightarrow$ `ciudad_nac`, `id_pais_nac`.
+  3. *Un nivel:* `"in Ubicación"` $\rightarrow$ `ciudad_nac`.
+- **Razón:** Primera Forma Normal (1NF) y cumplimiento del esquema DDL. Para `id_pais_nac`, se prioriza el código territorial extraído de la ubicación sobre la sigla deportiva del atleta, creando la entidad en `pais` si no existía para garantizar integridad referencial estricta.
+
+## DT-020: Enriquecimiento georreferenciado (`bios_locs` merge)
+
+- **Decisión:** Se realiza un merge entre la data biográfica cruda (`bios1.csv`) y el dataset geográfico (`bios_locs.csv`) por la clave común `athlete_id`, poblando los campos de coordenadas WGS84 `latitud` y `longitud` (`DECIMAL(9,6)`) en la tabla `atleta`.
+- **Razón:** Aprovechar el enriquecimiento geoespacial de la referencia oficial de Keith Galli sin desechar ninguna de las 16 columnas crudas originales (cumpliendo Reglas 4 y 7).
+
+## DT-021: Conversión robusta de fechas históricas olímpicas a MySQL DATE
+
+- **Decisión:** Las fechas en texto libre de `Born` y `Died` (ej. `"12 December 1886"`, `"1969-04-01"`, o solo año `"1886"`) se normalizan al estándar ISO-8601 `YYYY-MM-DD`. Cuando únicamente se dispone del año, se asume el primer día del año (`YYYY-01-01`).
+- **Razón:** El tipo de dato en MySQL es `DATE`. Esta normalización garantiza que las fechas sean indexables y comparables cronológicamente por los Stored Procedures de Persona 3.
+
 ---
 
-*Última actualización: 2026-09-10 — Análisis inicial y planificación de fases.*
+*Última actualización: 2026-09-12 — Ejecución y documentación de la Fase 2 (Limpieza de bios y carga de atleta).*
