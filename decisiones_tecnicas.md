@@ -161,6 +161,11 @@ Secuencia estricta respetando dependencias FK:
 - **Decisión:** Si durante la carga de sedes o equipos se identifica un código NOC o de país que no fue cargado en la fase dimensional (por pertenecer a filas fuera de la muestra inicial o por delegaciones de sedes históricas), el pipeline lo resuelve o aprovisiona automáticamente en las tablas `pais` y `noc` antes de insertar en `sede` o `equipo`.
 - **Razón:** Cumplimiento estricto del orden de dependencias de claves foráneas (DT-008). Evita que la inserción de una sede o equipo falle por integridad referencial ante datos de diferentes capas.
 
+## DT-025: Deduplicación por tokens y enriquecimiento de preseas entre fuentes Kaggle
+
+- **Decisión:** En la Fuente 3 (`olympics_dataset.csv`), se implementó matching de atletas por coincidencia de subconjunto de tokens de nombres normalizados (ej. `"gunnar aaby"` como subconjunto de `"gunnar nielsen aaby"`), evitando duplicar atletas que aparecen con segundo nombre en una fuente y abreviados en otra. Si una participación ya existía registrada como `'NA'` pero la Fuente 3 reporta medalla de podio (`Gold`, `Silver`, `Bronze`), se actualiza la medalla en `participacion` de forma idempotente sin duplicar el hecho.
+- **Razón:** Integridad del modelo de hechos. Garantiza que la tabla `participacion` refleje la versión más precisa del resultado olímpico sin incurrir en duplicaciones de la clave compuesta natural `(id_atleta, id_evento, id_olimpiada)`.
+
 ---
 
-*Última actualización: 2026-09-12 — Ejecución y documentación de la Fase 3 (Carga de Tablas de Contexto: sede, olimpiada, deporte, disciplina, evento, equipo).*
+*Última actualización: 2026-09-13 — Ejecución y documentación de la Fase 6 (Actualización Fuente 3: olympics_dataset.csv).*

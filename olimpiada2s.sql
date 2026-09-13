@@ -248,3 +248,303 @@ GROUP BY p.codigo_pais, p.nombre
 ORDER BY p.nombre;
 
 
+-- CONTROL 1: Métricas Globales de Completitud y Calidad en 'atleta'
+
+SELECT 
+    COUNT(*) AS total_atletas,
+    SUM(id_externo IS NOT NULL) AS con_id_externo,
+    SUM(sexo IN ('M', 'F')) AS sexo_valido,
+    SUM(fecha_nac IS NOT NULL) AS con_fecha_nac,
+    SUM(id_pais_nac IS NOT NULL) AS con_pais_nac_fk,
+    SUM(latitud IS NOT NULL AND longitud IS NOT NULL) AS con_coords_gps,
+    SUM(nombre LIKE '%•%' OR nombre LIKE '%â€¢%') AS con_bullets_error,
+    SUM(apodo IS NOT NULL OR titulo IS NOT NULL OR afiliacion IS NOT NULL) AS con_datos_crudos
+FROM atleta;
+
+-- CONTROL 4: Muestra Consolidada con Cruce Geográfico y Medidas
+
+SELECT 
+    a.id_externo,
+    a.nombre,
+    a.sexo,
+    a.fecha_nac,
+    CONCAT(COALESCE(a.ciudad_nac, '-'), ', ', COALESCE(p.codigo_pais, '-')) AS lugar_nac,
+    CONCAT(COALESCE(a.altura_cm, '-'), ' cm / ', COALESCE(a.peso_kg, '-'), ' kg') AS medidas,
+    ROUND(a.latitud, 4) AS lat,
+    ROUND(a.longitud, 4) AS lon
+FROM atleta a
+LEFT JOIN pais p ON a.id_pais_nac = p.id_pais
+ORDER BY a.id_externo
+LIMIT 5;
+
+-- 1. Conteo de registros en las 6 tablas de contexto
+SELECT 'sede' AS tabla, COUNT(*) AS total FROM sede
+UNION ALL SELECT 'olimpiada', COUNT(*) FROM olimpiada
+UNION ALL SELECT 'deporte', COUNT(*) FROM deporte
+UNION ALL SELECT 'disciplina', COUNT(*) FROM disciplina
+UNION ALL SELECT 'evento', COUNT(*) FROM evento
+UNION ALL SELECT 'equipo', COUNT(*) FROM equipo;
+
+SELECT 
+    (SELECT COUNT(*) FROM sede WHERE id_pais IS NOT NULL AND id_pais NOT IN (SELECT id_pais FROM pais)) AS huerfanas_sede_pais,
+    (SELECT COUNT(*) FROM olimpiada WHERE id_sede IS NOT NULL AND id_sede NOT IN (SELECT id_sede FROM sede)) AS huerfanas_olimpiada_sede,
+    (SELECT COUNT(*) FROM disciplina WHERE id_deporte IS NOT NULL AND id_deporte NOT IN (SELECT id_deporte FROM deporte)) AS huerfanas_disciplina_deporte,
+    (SELECT COUNT(*) FROM evento WHERE id_disciplina IS NOT NULL AND id_disciplina NOT IN (SELECT id_disciplina FROM disciplina)) AS huerfanas_evento_disciplina,
+    (SELECT COUNT(*) FROM equipo WHERE id_noc IS NOT NULL AND id_noc NOT IN (SELECT id_noc FROM noc)) AS huerfanas_equipo_noc;
+
+
+-- 3. Muestra de relaciones resueltas
+SELECT o.anio, o.temporada, s.ciudad, p.codigo_pais 
+FROM olimpiada o 
+JOIN sede s ON o.id_sede = s.id_sede 
+LEFT JOIN pais p ON s.id_pais = p.id_pais 
+ORDER BY o.anio 
+LIMIT 4;
+
+-- 1. Métricas de participaciones y distribución de medallas
+SELECT 
+    COUNT(*) AS total_participaciones,
+    SUM(id_medalla = 4) AS sin_medalla_NA,
+    SUM(id_medalla = 3) AS bronce,
+    SUM(id_medalla = 2) AS plata,
+    SUM(id_medalla = 1) AS oro
+FROM participacion;
+
+-- 2. Integridad de Claves Foráneas (todas deben retornar 0)
+SELECT 
+    (SELECT COUNT(*) FROM participacion WHERE id_atleta NOT IN (SELECT id_atleta FROM atleta)) AS h_atleta,
+    (SELECT COUNT(*) FROM participacion WHERE id_evento NOT IN (SELECT id_evento FROM evento)) AS h_evento,
+    (SELECT COUNT(*) FROM participacion WHERE id_olimpiada NOT IN (SELECT id_olimpiada FROM olimpiada)) AS h_olimpiada,
+    (SELECT COUNT(*) FROM participacion WHERE id_equipo NOT IN (SELECT id_equipo FROM equipo)) AS h_equipo,
+    (SELECT COUNT(*) FROM participacion WHERE id_medalla NOT IN (SELECT id_medalla FROM medalla)) AS h_medalla;
+
+
+-- 3. Muestra de hechos registrados
+SELECT 
+    a.nombre AS atleta,
+    CONCAT(o.anio, ' ', o.temporada) AS edicion,
+    e.nombre AS prueba,
+    p.posicion,
+    m.tipo AS medalla
+FROM participacion p
+JOIN atleta a ON p.id_atleta = a.id_atleta
+JOIN olimpiada o ON p.id_olimpiada = o.id_olimpiada
+JOIN evento e ON p.id_evento = e.id_evento
+JOIN medalla m ON p.id_medalla = m.id_medalla
+ORDER BY p.id_participacion
+LIMIT 5;
+
+-- 1. Métricas de Atletas y Participaciones enriquecidas
+SELECT 
+    (SELECT COUNT(*) FROM atleta) AS total_atletas,
+    (SELECT COUNT(*) FROM atleta WHERE id_externo IS NULL) AS atletas_nuevos_kaggle,
+    (SELECT COUNT(*) FROM participacion) AS total_participaciones,
+    (SELECT COUNT(*) FROM participacion WHERE edad IS NOT NULL) AS participaciones_con_metricas;
+
+-- 2. Integridad de Claves Foráneas (debe retornar 0 huérfanas)
+SELECT 
+    (SELECT COUNT(*) FROM participacion WHERE id_atleta NOT IN (SELECT id_atleta FROM atleta)) AS h_atleta,
+    (SELECT COUNT(*) FROM participacion WHERE id_evento NOT IN (SELECT id_evento FROM evento)) AS h_evento,
+    (SELECT COUNT(*) FROM participacion WHERE id_olimpiada NOT IN (SELECT id_olimpiada FROM olimpiada)) AS h_olimpiada,
+    (SELECT COUNT(*) FROM participacion WHERE id_equipo NOT IN (SELECT id_equipo FROM equipo)) AS h_equipo,
+    (SELECT COUNT(*) FROM participacion WHERE id_medalla NOT IN (SELECT id_medalla FROM medalla)) AS h_medalla;
+
+
+-- 3. Muestra de participaciones enriquecidas con edad, altura y peso
+SELECT 
+    a.nombre,
+    CONCAT(o.anio, ' ', o.temporada) AS edicion,
+    e.nombre AS prueba,
+    p.edad,
+    CONCAT(COALESCE(p.altura_reg, '-'), ' cm') AS altura,
+    CONCAT(COALESCE(p.peso_reg, '-'), ' kg') AS peso,
+    m.tipo AS medalla
+FROM participacion p
+JOIN atleta a ON p.id_atleta = a.id_atleta
+JOIN olimpiada o ON p.id_olimpiada = o.id_olimpiada
+JOIN evento e ON p.id_evento = e.id_evento
+JOIN medalla m ON p.id_medalla = m.id_medalla
+WHERE p.edad IS NOT NULL
+ORDER BY p.id_participacion DESC
+LIMIT 5;
+
+
+-- 1. Totales consolidados tras la integración de las 3 fuentes
+SELECT 
+    (SELECT COUNT(*) FROM atleta) AS total_atletas,
+    (SELECT COUNT(*) FROM participacion) AS total_participaciones,
+    (SELECT COUNT(*) FROM sede) AS total_sedes,
+    (SELECT COUNT(*) FROM olimpiada) AS total_olimpiadas,
+    (SELECT COUNT(*) FROM evento) AS total_eventos;
+    
+    
+-- 2. Medallero olímpico acumulado en 'participacion'
+SELECT 
+    m.tipo AS medalla, 
+    COUNT(*) AS total_participaciones
+FROM participacion p
+JOIN medalla m ON p.id_medalla = m.id_medalla
+GROUP BY m.tipo
+ORDER BY FIELD(m.tipo, 'Gold', 'Silver', 'Bronze', 'NA');
+
+
+
+-- 3. Integridad de Claves Foráneas (debe retornar 0 huérfanas)
+SELECT 
+    (SELECT COUNT(*) FROM participacion WHERE id_atleta NOT IN (SELECT id_atleta FROM atleta)) AS h_atleta,
+    (SELECT COUNT(*) FROM participacion WHERE id_evento NOT IN (SELECT id_evento FROM evento)) AS h_evento,
+    (SELECT COUNT(*) FROM participacion WHERE id_olimpiada NOT IN (SELECT id_olimpiada FROM olimpiada)) AS h_olimpiada,
+    (SELECT COUNT(*) FROM participacion WHERE id_equipo NOT IN (SELECT id_equipo FROM equipo)) AS h_equipo,
+    (SELECT COUNT(*) FROM participacion WHERE id_medalla NOT IN (SELECT id_medalla FROM medalla)) AS h_medalla;
+
+
+
+
+-- 1. CENSO GLOBAL DE LAS 12 TABLAS POBLADAS
+-- ============================================================================
+SELECT 'pais' AS tabla, COUNT(*) AS total FROM pais
+UNION ALL SELECT 'noc', COUNT(*) FROM noc
+UNION ALL SELECT 'poblacion_pais', COUNT(*) FROM poblacion_pais
+UNION ALL SELECT 'sede', COUNT(*) FROM sede
+UNION ALL SELECT 'olimpiada', COUNT(*) FROM olimpiada
+UNION ALL SELECT 'atleta', COUNT(*) FROM atleta
+UNION ALL SELECT 'deporte', COUNT(*) FROM deporte
+UNION ALL SELECT 'disciplina', COUNT(*) FROM disciplina
+UNION ALL SELECT 'evento', COUNT(*) FROM evento
+UNION ALL SELECT 'equipo', COUNT(*) FROM equipo
+UNION ALL SELECT 'medalla', COUNT(*) FROM medalla
+UNION ALL SELECT 'participacion', COUNT(*) FROM participacion;
+
+
+
+-- 2. AUDITORÍA DE LAS 13 CLAVES FORÁNEAS (Todas deben dar 0 huérfanas)
+-- ============================================================================
+SELECT 
+    (SELECT COUNT(*) FROM noc WHERE id_pais IS NOT NULL AND id_pais NOT IN (SELECT id_pais FROM pais)) AS h_noc_pais,
+    (SELECT COUNT(*) FROM sede WHERE id_pais IS NOT NULL AND id_pais NOT IN (SELECT id_pais FROM pais)) AS h_sede_pais,
+    (SELECT COUNT(*) FROM olimpiada WHERE id_sede IS NOT NULL AND id_sede NOT IN (SELECT id_sede FROM sede)) AS h_olimp_sede,
+    (SELECT COUNT(*) FROM disciplina WHERE id_deporte IS NOT NULL AND id_deporte NOT IN (SELECT id_deporte FROM deporte)) AS h_disc_dep,
+    (SELECT COUNT(*) FROM evento WHERE id_disciplina IS NOT NULL AND id_disciplina NOT IN (SELECT id_disciplina FROM disciplina)) AS h_ev_disc,
+    (SELECT COUNT(*) FROM equipo WHERE id_noc IS NOT NULL AND id_noc NOT IN (SELECT id_noc FROM noc)) AS h_eq_noc,
+    (SELECT COUNT(*) FROM atleta WHERE id_pais_nac IS NOT NULL AND id_pais_nac NOT IN (SELECT id_pais FROM pais)) AS h_atl_pais,
+    (SELECT COUNT(*) FROM poblacion_pais WHERE id_pais NOT IN (SELECT id_pais FROM pais)) AS h_pob_pais,
+    (SELECT COUNT(*) FROM participacion WHERE id_atleta NOT IN (SELECT id_atleta FROM atleta)) AS h_part_atl,
+    (SELECT COUNT(*) FROM participacion WHERE id_evento NOT IN (SELECT id_evento FROM evento)) AS h_part_ev,
+    (SELECT COUNT(*) FROM participacion WHERE id_olimpiada NOT IN (SELECT id_olimpiada FROM olimpiada)) AS h_part_olimp,
+    (SELECT COUNT(*) FROM participacion WHERE id_equipo NOT IN (SELECT id_equipo FROM equipo)) AS h_part_eq,
+    (SELECT COUNT(*) FROM participacion WHERE id_medalla NOT IN (SELECT id_medalla FROM medalla)) AS h_part_med;
+
+
+
+
+-- 3. SIMULACIÓN 'sp_consultar_atleta' (Búsqueda de 'Jean Borotra')
+-- ============================================================================
+SELECT 
+    a.nombre AS atleta,
+    CONCAT(o.anio, ' ', o.temporada) AS edicion,
+    s.ciudad AS sede,
+    dep.nombre AS deporte,
+    e.nombre AS prueba,
+    eq.nombre AS equipo,
+    p.posicion,
+    m.tipo AS medalla
+FROM participacion p
+JOIN atleta a ON p.id_atleta = a.id_atleta
+JOIN olimpiada o ON p.id_olimpiada = o.id_olimpiada
+JOIN sede s ON o.id_sede = s.id_sede
+JOIN evento e ON p.id_evento = e.id_evento
+JOIN disciplina d ON e.id_disciplina = d.id_disciplina
+JOIN deporte dep ON d.id_deporte = dep.id_deporte
+JOIN equipo eq ON p.id_equipo = eq.id_equipo
+JOIN medalla m ON p.id_medalla = m.id_medalla
+WHERE a.nombre LIKE '%Jean Borotra%'
+ORDER BY o.anio;
+
+
+
+
+-- 4. SIMULACIÓN 'sp_consultar_pais' (Medallero Histórico de 'FRA')
+-- ============================================================================
+SELECT 
+    pa.codigo_pais,
+    pa.nombre AS pais,
+    SUM(m.tipo = 'Gold') AS oro,
+    SUM(m.tipo = 'Silver') AS plata,
+    SUM(m.tipo = 'Bronze') AS bronce,
+    COUNT(*) AS total_participaciones
+FROM participacion p
+JOIN equipo eq ON p.id_equipo = eq.id_equipo
+JOIN noc n ON eq.id_noc = n.id_noc
+LEFT JOIN pais pa ON n.id_pais = pa.id_pais
+JOIN medalla m ON p.id_medalla = m.id_medalla
+WHERE pa.codigo_pais = 'FRA'
+GROUP BY pa.codigo_pais, pa.nombre;
+
+
+
+
+
+-- VISTA GENERAL DE LA BASE DE DATOS
+
+
+SELECT 
+    -- 1. HECHO PRINCIPAL
+    p.id_participacion,
+    
+    -- 2. DATOS BIOGRÁFICOS DEL ATLETA
+    a.id_atleta,
+    a.id_externo AS id_olympedia,
+    a.nombre AS atleta,
+    a.sexo,
+    a.fecha_nac,
+    a.ciudad_nac,
+    pa_nac.codigo_pais AS pais_nacimiento,
+    a.altura_cm AS alt_base,
+    a.peso_kg AS peso_base,
+    a.apodo,
+    a.afiliacion,
+    a.latitud,
+    a.longitud,
+    
+    -- 3. MÉTRICAS REGISTRADAS EN LA EDICIÓN
+    p.edad,
+    p.altura_reg,
+    p.peso_reg,
+    p.posicion,
+    p.es_empate,
+    m.tipo AS medalla,
+    p.compitio_como,
+    
+    -- 4. JERARQUÍA DEPORTIVA (3 NIVELES)
+    dep.nombre AS deporte,
+    d.nombre AS disciplina,
+    e.nombre AS evento,
+    
+    -- 5. EDICIÓN OLÍMPICA Y SEDE
+    o.anio,
+    o.temporada,
+    o.nombre_juegos,
+    s.ciudad AS ciudad_sede,
+    pa_sede.nombre AS pais_sede,
+    
+    -- 6. EQUIPO Y DELEGACIÓN
+    eq.nombre AS equipo,
+    n.codigo_noc,
+    pa_noc.nombre AS pais_delegacion
+FROM participacion p
+JOIN atleta a ON p.id_atleta = a.id_atleta
+LEFT JOIN pais pa_nac ON a.id_pais_nac = pa_nac.id_pais
+JOIN evento e ON p.id_evento = e.id_evento
+JOIN disciplina d ON e.id_disciplina = d.id_disciplina
+JOIN deporte dep ON d.id_deporte = dep.id_deporte
+JOIN olimpiada o ON p.id_olimpiada = o.id_olimpiada
+JOIN sede s ON o.id_sede = s.id_sede
+LEFT JOIN pais pa_sede ON s.id_pais = pa_sede.id_pais
+JOIN equipo eq ON p.id_equipo = eq.id_equipo
+JOIN noc n ON eq.id_noc = n.id_noc
+LEFT JOIN pais pa_noc ON n.id_pais = pa_noc.id_pais
+JOIN medalla m ON p.id_medalla = m.id_medalla
+ORDER BY p.id_participacion;
+
+
+
