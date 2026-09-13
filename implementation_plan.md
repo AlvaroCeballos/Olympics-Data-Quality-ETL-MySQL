@@ -324,11 +324,11 @@ SBD2B_PROYECT1_2S2026_G18/
 
 | Fase | Script | Tablas afectadas | Fuente(s) | Estado |
 |------|--------|-----------------|-----------|--------|
-| 0 | `fase0_ddl.py` + `utils.py` | Todas (DDL) | `olimpiada2s.sql` | ⬜ Pendiente |
-| 1 | `fase1_dimensionales.py` | `pais`, `noc`, `poblacion_pais` | `noc_regions`, `populations` | ⬜ Pendiente |
-| 2 | `fase2_atletas.py` | `atleta` | `bios1`, `bios_locs` | ⬜ Pendiente |
-| 3 | `fase3_contexto.py` | `sede`, `olimpiada`, `deporte`, `disciplina`, `evento`, `equipo` | `results1`, `athlete_events` | ⬜ Pendiente |
-| 4 | `fase4_participacion_base.py` | `participacion` | `results1` | ⬜ Pendiente |
+| 0 | `fase0_ddl.py` + `utils.py` | Todas (DDL) | `olimpiada2s.sql` | ✅ Completada |
+| 1 | `fase1_dimensionales.py` | `pais`, `noc`, `poblacion_pais` | `noc_regions`, `populations` | ✅ Completada |
+| 2 | `fase2_atletas.py` | `atleta` | `bios1`, `bios_locs` | ✅ Completada |
+| 3 | `fase3_contexto.py` | `sede`, `olimpiada`, `deporte`, `disciplina`, `evento`, `equipo` | `results1`, `athlete_events` | ✅ Completada |
+| 4 | `fase4_participacion_base.py` | `participacion` | `results1` | ✅ Completada |
 | 5 | `fase5_enriquecimiento.py` | `atleta`, `participacion` | `athlete_events` | ⬜ Pendiente |
 | 6 | `fase6_actualizacion.py` | `atleta`, `participacion`, `sede`, `olimpiada` | `olympics_dataset` | ⬜ Pendiente |
 | 7 | `fase7_validacion.py` | Lectura | Todas | ⬜ Pendiente |

@@ -146,6 +146,21 @@ Secuencia estricta respetando dependencias FK:
 - **Decisión:** Las fechas en texto libre de `Born` y `Died` (ej. `"12 December 1886"`, `"1969-04-01"`, o solo año `"1886"`) se normalizan al estándar ISO-8601 `YYYY-MM-DD`. Cuando únicamente se dispone del año, se asume el primer día del año (`YYYY-01-01`).
 - **Razón:** El tipo de dato en MySQL es `DATE`. Esta normalización garantiza que las fechas sean indexables y comparables cronológicamente por los Stored Procedures de Persona 3.
 
+## DT-022: Catálogo histórico oficial de sedes y resolución contextual
+
+- **Decisión:** Se implementa un catálogo histórico oficial de respaldo para mapear `(anio, temporada) -> (ciudad, codigo_pais_iso)`. Se consulta primero el dataset `athlete_events.csv`, y si la edición no contiene ciudad o no está presente en la muestra (ej: 1912 Summer en muestras reducidas), se recurre al catálogo histórico.
+- **Razón:** La tabla `results1.csv` carece de la columna `City`, conteniendo únicamente el texto de los juegos (ej: `"1912 Summer Olympics"`). Este catálogo garantiza que el 100% de las ediciones en `olimpiada` tengan una `sede` real y vinculada a un `pais` geográfico sin violar claves foráneas.
+
+## DT-023: Tratamiento de equipos para pruebas individuales en `results1.csv`
+
+- **Decisión:** Para registros de `results1.csv` donde la columna `Team` es nula o vacía (correspondiente a pruebas individuales como *"Singles, Men"*), se asigna como nombre del equipo el nombre oficial de la delegación o país asociado a su código NOC (ej. `"France"` para `NOC = 'FRA'`). Para pruebas colectivas o dobles, se mantiene el nombre del equipo o pareja registrado en la data cruda.
+- **Razón:** El DDL define `equipo.nombre VARCHAR(120) NOT NULL`. Asignar la delegación nacional evita nulos y permite asociar de forma natural las participaciones individuales a un equipo representativo vinculado a su NOC.
+
+## DT-024: Resolución y aprovisionamiento on-the-fly de NOCs y países
+
+- **Decisión:** Si durante la carga de sedes o equipos se identifica un código NOC o de país que no fue cargado en la fase dimensional (por pertenecer a filas fuera de la muestra inicial o por delegaciones de sedes históricas), el pipeline lo resuelve o aprovisiona automáticamente en las tablas `pais` y `noc` antes de insertar en `sede` o `equipo`.
+- **Razón:** Cumplimiento estricto del orden de dependencias de claves foráneas (DT-008). Evita que la inserción de una sede o equipo falle por integridad referencial ante datos de diferentes capas.
+
 ---
 
-*Última actualización: 2026-09-12 — Ejecución y documentación de la Fase 2 (Limpieza de bios y carga de atleta).*
+*Última actualización: 2026-09-12 — Ejecución y documentación de la Fase 3 (Carga de Tablas de Contexto: sede, olimpiada, deporte, disciplina, evento, equipo).*
