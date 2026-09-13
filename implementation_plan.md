@@ -329,6 +329,6 @@ SBD2B_PROYECT1_2S2026_G18/
 | 2 | `fase2_atletas.py` | `atleta` | `bios1`, `bios_locs` | ✅ Completada |
 | 3 | `fase3_contexto.py` | `sede`, `olimpiada`, `deporte`, `disciplina`, `evento`, `equipo` | `results1`, `athlete_events` | ✅ Completada |
 | 4 | `fase4_participacion_base.py` | `participacion` | `results1` | ✅ Completada |
-| 5 | `fase5_enriquecimiento.py` | `atleta`, `participacion` | `athlete_events` | ⬜ Pendiente |
+| 5 | `fase5_enriquecimiento.py` | `atleta`, `participacion` | `athlete_events` | ✅ Completada |
 | 6 | `fase6_actualizacion.py` | `atleta`, `participacion`, `sede`, `olimpiada` | `olympics_dataset` | ⬜ Pendiente |
 | 7 | `fase7_validacion.py` | Lectura | Todas | ⬜ Pendiente |
