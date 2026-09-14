@@ -46,6 +46,7 @@ def crear_procedimientos():
         LIMIT 10;
 
         SELECT 
+            a.id_atleta,
             a.nombre AS atleta, CONCAT(o.anio, ' ', o.temporada) AS edicion, s.ciudad AS ciudad_sede,
             dep.nombre AS deporte, disc.nombre AS disciplina, e.nombre AS evento, eq.nombre AS equipo,
             pa_eq.codigo_pais AS codigo_pais_rep, p.edad, p.posicion, p.es_empate, m.tipo AS medalla
@@ -101,7 +102,7 @@ def crear_procedimientos():
         JOIN evento e ON part.id_evento = e.id_evento JOIN disciplina disc ON e.id_disciplina = disc.id_disciplina JOIN deporte dep ON disc.id_deporte = dep.id_deporte
         WHERE (p.codigo_pais = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%'))
           AND (p_anio_inicio IS NULL OR o.anio >= p_anio_inicio) AND (p_anio_fin IS NULL OR o.anio <= p_anio_fin)
-          AND (p_solo_medallas IS FALSE OR (p_solo_medallas IS TRUE AND m.tipo != 'NA'))
+          AND (p_solo_medallas IS NULL OR p_solo_medallas IS FALSE OR (p_solo_medallas IS TRUE AND m.tipo != 'NA'))
         GROUP BY o.anio, o.temporada, dep.nombre, disc.nombre
         ORDER BY o.anio ASC, dep.nombre ASC;
     END;
