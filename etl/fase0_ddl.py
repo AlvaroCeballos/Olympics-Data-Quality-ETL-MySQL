@@ -44,10 +44,11 @@ def parse_sql_statements(sql_text):
     Maneja correctamente:
       - Comentarios de línea (--)
       - Sentencias multilínea
-      - Cadenas con punto y coma dentro de comillas
+      - Directivas DELIMITER de MySQL para Stored Procedures
     """
     statements = []
     current = []
+    delimiter = ';'
     
     for line in sql_text.split('\n'):
         stripped = line.strip()
@@ -56,25 +57,33 @@ def parse_sql_statements(sql_text):
         if not stripped or stripped.startswith('--'):
             continue
         
+        # Manejar cambio de delimitador (ej: DELIMITER //)
+        if stripped.upper().startswith('DELIMITER'):
+            parts = stripped.split()
+            if len(parts) >= 2:
+                delimiter = parts[1].strip()
+            continue
+        
         # Quitar comentarios al final de la línea (fuera de comillas)
-        # Simplificado: quitar todo después de -- que no esté dentro de comillas
         comment_pos = stripped.find('--')
         if comment_pos > 0:
-            # Verificar que no esté dentro de comillas (simplificación)
             before = stripped[:comment_pos]
             if before.count("'") % 2 == 0:
                 stripped = before.rstrip()
         
         current.append(stripped)
         
-        # Si la línea termina con ';', es el final de una sentencia
-        if stripped.endswith(';'):
-            stmt = ' '.join(current).rstrip(';').strip()
+        # Si la línea termina con el delimitador actual, es el final de una sentencia
+        if stripped.endswith(delimiter):
+            stmt = ' '.join(current)
+            if stmt.endswith(delimiter):
+                stmt = stmt[:-len(delimiter)]
+            stmt = stmt.strip()
             if stmt:
                 statements.append(stmt)
             current = []
     
-    # Agregar sentencia final si no terminó con ';'
+    # Agregar sentencia final si quedó pendiente
     if current:
         stmt = ' '.join(current).strip()
         if stmt:
@@ -103,7 +112,7 @@ def ejecutar_ddl():
     # 2. Conectar SIN base de datos (para poder DROP/CREATE DATABASE)
     print("\n  Conectando a MySQL (sin base de datos)...")
     conn = get_connection(database=None)
-    cursor = conn.cursor()
+    cursor = conn.cursor(buffered=True)
     
     # 3. Parsear y ejecutar sentencias una por una
     print("  Ejecutando script DDL...")
@@ -114,6 +123,8 @@ def ejecutar_ddl():
         for i, stmt in enumerate(statements):
             try:
                 cursor.execute(stmt)
+                if cursor.with_rows:
+                    cursor.fetchall()
                 executed += 1
             except Exception as e:
                 print_error(f"Sentencia {i+1}: {e}")

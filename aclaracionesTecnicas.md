@@ -124,4 +124,6 @@
     * **Condición de Sede Histórica:** Consulta sobre las tablas `sede`, `pais` y `olimpiada` para verificar si el país albergó alguna edición de los juegos, listando explícitamente las ciudades anfitrionas y los años correspondientes.
     * **Medallero Histórico Acumulado:** Retorna el conteo consolidado de medallas mediante agregaciones:
       $$\text{Total Oro} = \sum(\text{Medalla} = \text{'Gold'}), \quad \text{Total Plata} = \sum(\text{Medalla} = \text{'Silver'}), \quad \text{Total Bronce} = \sum(\text{Medalla} = \text{'Bronze'})$$
-    * **Control de volumen:** Prohibido emitir un `SELECT *` de todas las participaciones del país. La información debe devolverse agrupada por edición olímpica y disciplina deportiva para responder de forma ágil y controlada durante la evaluación técnica.
+    * **Control de volumen:** Prohibido emitir un `SELECT *` de todas las participaciones del país. La información debe devolverse agrupada por edición olímpica y disciplina deportiva para responder de forma ágil y controlada durante la evaluación técnica.![alt text](image.png)
+
+    ![alt text](image-1.png)

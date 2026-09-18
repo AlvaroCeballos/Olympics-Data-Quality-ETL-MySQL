@@ -354,7 +354,7 @@ def cargar_atletas(cursor, conn):
     insertados = 0
     actualizados = 0
     
-    for _, row in bios_df.iterrows():
+    for idx, (_, row) in enumerate(bios_df.iterrows()):
         athlete_id = int(row['athlete_id']) if pd.notna(row.get('athlete_id')) else None
         
         # Nombres
@@ -415,6 +415,10 @@ def cargar_atletas(cursor, conn):
             if athlete_id:
                 atletas_existentes[athlete_id] = nuevo_id
             insertados += 1
+
+        if (idx + 1) % 25000 == 0:
+            conn.commit()
+            print(f"  -> Progreso: {idx + 1}/{len(bios_df)} atletas ({((idx + 1)/len(bios_df)*100):.1f}%)...")
     
     conn.commit()
     print_ok(f"Atletas procesados: {len(bios_df)} (nuevos insertados: {insertados}, actualizados: {actualizados})")
@@ -466,7 +470,8 @@ def verificar_fase2(cursor):
                a.latitud, a.longitud
         FROM atleta a
         LEFT JOIN pais p ON a.id_pais_nac = p.id_pais
-        ORDER BY a.id_atleta;
+        ORDER BY a.id_atleta
+        LIMIT 5;
     """)
     for r in cursor.fetchall():
         print(f"    [{r[0]}] ext_id={r[1]}, nombre='{r[2]}', sexo={r[3]}, "

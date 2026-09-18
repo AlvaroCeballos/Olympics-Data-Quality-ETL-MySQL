@@ -206,20 +206,24 @@ python etl/fase7_validacion.py
 ### Paso 3: Verificación en MySQL Workbench
 Abrir MySQL Workbench, abrir el archivo [`olimpiada2s.sql`](file:///d:/Proyectos%20U/Bases%202/Proyecto%201/SBD2B_PROYECT1_2S2026_G18/olimpiada2s.sql) y ejecutar las consultas del bloque final (a partir de la línea 416). Se deben obtener exactamente estos resultados:
 
-* **Censo de Tablas:**
-  * `pais`: 35
-  * `noc`: 21
-  * `poblacion_pais`: 960
-  * `sede`: 12
-  * `olimpiada`: 13
-  * `atleta`: 26
-  * `deporte`: 11
-  * `disciplina`: 11
-  * `evento`: 20
-  * `equipo`: 16
+* **Censo de Tablas — Carga Completa Real (Producción):**
+  * `pais`: 487
+  * `noc`: 236
+  * `poblacion_pais`: 16,930 (series demográficas 1960–2023)
+  * `sede`: 45
+  * `olimpiada`: 63 (1896 Atenas hasta 2024 París)
+  * `atleta`: 234,621
+  * `deporte`: 148
+  * `disciplina`: 149
+  * `evento`: 3,152
+  * `equipo`: 20,845
   * `medalla`: 4
-  * `participacion`: 41
-* **Auditoría de Claves Foráneas:** Las 13 relaciones deben arrojar **0 huérfanas**.
+  * `participacion`: 660,924 (con 44,058 empates registrados)
+
+* **Censo de Tablas — Muestra Ligera de Pruebas (`data_samples` de 15 filas):**
+  * `pais`: 35 | `noc`: 21 | `poblacion_pais`: 960 | `sede`: 12 | `olimpiada`: 13 | `atleta`: 26 | `deporte`: 11 | `disciplina`: 11 | `evento`: 20 | `equipo`: 16 | `medalla`: 4 | `participacion`: 41
+
+* **Auditoría de Claves Foráneas:** Las 13 relaciones de integridad referencial arrojan **0 huérfanas** (100% de consistencia relacional).
 
 ---
 

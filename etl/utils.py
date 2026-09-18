@@ -13,10 +13,21 @@ Decisiones técnicas aplicadas: DT-005, DT-006, DT-002
 """
 
 import os
+import sys
+import io
 import re
 import unicodedata
 import mysql.connector
 from mysql.connector import Error
+
+if sys.platform == 'win32':
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
 
 # =====================================================================
 # CONFIGURACIÓN DE CONEXIÓN MySQL
@@ -181,18 +192,36 @@ def fix_mojibake_series(series):
 
 # =====================================================================
 # NORMALIZACIÓN DE NOMBRES PARA DEDUPLICACIÓN (DT-002)
-# =====================================================================
+_CORRUPTED_TOKEN_MAP = {
+    'garca': 'garcia',
+    'lpez': 'lopez',
+    'rodrguez': 'rodriguez',
+    'martnez': 'martinez',
+    'hernndez': 'hernandez',
+    'snchez': 'sanchez',
+    'prez': 'perez',
+    'gonzlez': 'gonzalez',
+    'gmez': 'gomez',
+    'daz': 'diaz',
+    'jos': 'jose',
+    'ngel': 'angel',
+    'mara': 'maria',
+    'vtor': 'vitor',
+    'bernab': 'bernabe',
+}
+
 def normalize_name(name):
     """
     Normaliza un nombre para construir la matching key de deduplicación.
     
     Proceso:
       1. Convertir a minúsculas
-      2. Normalización Unicode NFKD (descomponer caracteres acentuados)
-      3. Quitar marcas diacríticas (acentos)
-      4. Quitar signos de puntuación
-      5. Quitar bullet (•)
-      6. Colapsar espacios múltiples y trim
+      2. Quitar bullet (•)
+      3. Normalización Unicode NFKD (descomponer caracteres acentuados)
+      4. Quitar marcas diacríticas (acentos)
+      5. Reemplazar puntuación por espacios (ej: 'Jean-Pierre' -> 'jean pierre')
+      6. Restaurar tokens comunes con vocales eliminadas por raspadores defectuosos (ej: 'garca' -> 'garcia')
+      7. Colapsar espacios múltiples y trim
     
     Decisión técnica: DT-002
     """
@@ -209,13 +238,34 @@ def normalize_name(name):
     result = unicodedata.normalize('NFKD', result)
     result = ''.join(c for c in result if not unicodedata.combining(c))
     
-    # Quitar puntuación (conservar letras, números y espacios)
-    result = re.sub(r'[^\w\s]', '', result)
+    # Reemplazar puntuación por espacio para que nombres con guión no se peguen
+    result = re.sub(r'[^\w\s]', ' ', result)
     
     # Colapsar espacios
-    result = re.sub(r'\s+', ' ', result).strip()
+    tokens = result.split()
+    tokens = [_CORRUPTED_TOKEN_MAP.get(t, t) for t in tokens]
     
-    return result
+    return ' '.join(tokens).strip()
+
+
+_EVENT_STOP_WORDS = {
+    'men', 'mens', 'women', 'womens', 'mixed', 'open',
+    'olympic', 'nonolympic', 'intercalated', 'yog',
+    'individual', 'team', 'pairs', 'doubles', 'singles',
+    'summer', 'winter', 'games', 'the', 'and', 'for', 'with'
+}
+
+def extract_event_tokens(event_name):
+    """
+    Extrae los tokens esenciales de una prueba o evento olímpico
+    omitiendo categorías de género y sufijos de formato.
+    """
+    if not event_name or not isinstance(event_name, str):
+        return set()
+    norm = normalize_name(event_name)
+    # Reemplazar abreviaturas comunes
+    norm = norm.replace('km', 'kilometres').replace('m ', 'metres ')
+    return set(t for t in norm.split() if len(t) >= 2 and t not in _EVENT_STOP_WORDS)
 
 
 # =====================================================================

@@ -41,6 +41,7 @@ from utils import (
     get_connection,
     fix_mojibake,
     normalize_name,
+    extract_event_tokens,
     resolve_data_file,
     print_section,
     print_ok,
@@ -104,6 +105,84 @@ def validar_fuente4_cruzada(athlete_df, path_datalab):
         return False
 
 
+def buscar_o_resolver_atleta(nom_clean, nom_norm, sexo, anio_edicion, anio_nac_aprox,
+                              cache_exact, token_index, atletas_by_id, match_cache):
+    """
+    Resuelve la identidad del atleta aplicando:
+      1. Caché de memoización O(1)
+      2. Coincidencia exacta por 'nombre' o 'nombre_completo' O(1)
+      3. Coincidencia por subconjunto de tokens estricta (mínimo 2 tokens significativos y coherencia temporal).
+    """
+    key_exact = (nom_norm, sexo)
+    if match_cache is not None and key_exact in match_cache:
+        return match_cache[key_exact]
+
+    # 1. Coincidencia exacta (por nombre o nombre_completo)
+    if key_exact in cache_exact:
+        cands = cache_exact[key_exact]
+        # Si hay múltiples candidatos, desempatar por año aproximado
+        if anio_nac_aprox is not None and len(cands) > 1:
+            for cid in cands:
+                c = atletas_by_id[cid]
+                if c['fecha_nac'] and abs(c['fecha_nac'].year - anio_nac_aprox) <= 2:
+                    if match_cache is not None:
+                        match_cache[key_exact] = cid
+                    return cid
+        res_id = cands[0]
+        if match_cache is not None:
+            match_cache[key_exact] = res_id
+        return res_id
+
+    # 2. Coincidencia por subconjunto de tokens (permitir números romanos como ii, iii, iv, jr)
+    tokens_busqueda = set(t for t in nom_norm.split() if len(t) >= 3 or t in ('ii', 'iii', 'iv', 'jr'))
+    # REGLA FUNDAMENTAL: Monónimos o nombres de 1 sola palabra NUNCA hacen coincidencia por subconjunto
+    if len(tokens_busqueda) < 2:
+        if match_cache is not None:
+            match_cache[key_exact] = None
+        return None
+
+    candidatos_ids = set()
+    for tok in tokens_busqueda:
+        tok_key = (tok, sexo)
+        if tok_key in token_index:
+            candidatos_ids.update(token_index[tok_key])
+
+    for cid in candidatos_ids:
+        cand = atletas_by_id[cid]
+        # Coherencia cronológica
+        if anio_edicion and cand['fecha_nac']:
+            edad = anio_edicion - cand['fecha_nac'].year
+            if edad < 10 or edad > 75:
+                continue
+        elif anio_nac_aprox and cand['fecha_nac']:
+            if abs(cand['fecha_nac'].year - anio_nac_aprox) > 2:
+                continue
+
+        tokens_cand_nom = cand['tokens_nom']
+        tokens_cand_comp = cand['tokens_comp']
+
+        # El nombre del catálogo está contenido en la búsqueda (ej: 'Érick Barrondo' en 'Erick Bernab Barrondo Garca')
+        if len(tokens_cand_nom) >= 2 and tokens_cand_nom.issubset(tokens_busqueda):
+            if match_cache is not None:
+                match_cache[key_exact] = cid
+            return cid
+
+        # El nombre completo del catálogo contiene la búsqueda
+        if len(tokens_busqueda) >= 2 and tokens_cand_comp and tokens_busqueda.issubset(tokens_cand_comp):
+            if match_cache is not None:
+                match_cache[key_exact] = cid
+            return cid
+
+        if len(tokens_cand_comp) >= 2 and tokens_cand_comp.issubset(tokens_busqueda):
+            if match_cache is not None:
+                match_cache[key_exact] = cid
+            return cid
+
+    if match_cache is not None:
+        match_cache[key_exact] = None
+    return None
+
+
 def cargar_enriquecimiento_kaggle():
     """
     Ejecuta el pipeline de enriquecimiento de atletas y participaciones desde Kaggle.
@@ -134,27 +213,45 @@ def cargar_enriquecimiento_kaggle():
         # =====================================================================
         print_section("5.2 Carga de cachés en memoria para resolución de identidades")
         
-        # Caché de atletas existentes para deduplicación:
-        # clave: (nombre_norm, sexo) -> lista de dict con datos del atleta
-        cursor.execute("SELECT id_atleta, id_externo, nombre, sexo, fecha_nac, altura_cm, peso_kg FROM atleta;")
+        # Caché de atletas existentes para deduplicación: indexa nombre y nombre_completo
+        cursor.execute("SELECT id_atleta, id_externo, nombre, nombre_completo, sexo, fecha_nac, altura_cm, peso_kg FROM atleta;")
         atletas_rows = cursor.fetchall()
         
-        cache_atletas_matching = {}
+        cache_exact = {}
+        token_index = {}
+        atletas_by_id = {}
+        match_cache = {}
         for r in atletas_rows:
-            id_a, id_ext, nom, sx, fnac, alt, pes = r
+            id_a, id_ext, nom, nom_comp, sx, fnac, alt, pes = r
             nom_norm = normalize_name(nom)
-            key = (nom_norm, sx)
-            if key not in cache_atletas_matching:
-                cache_atletas_matching[key] = []
-            cache_atletas_matching[key].append({
+            nom_comp_norm = normalize_name(nom_comp) if nom_comp else None
+            
+            cand_info = {
                 'id_atleta': id_a,
                 'id_externo': id_ext,
                 'nombre': nom,
+                'nombre_completo': nom_comp,
                 'sexo': sx,
                 'fecha_nac': fnac,
                 'altura_cm': alt,
-                'peso_kg': pes
-            })
+                'peso_kg': pes,
+                'tokens_nom': set(t for t in nom_norm.split() if len(t) >= 3 or t in ('ii', 'iii', 'iv', 'jr')),
+                'tokens_comp': set(t for t in nom_comp_norm.split() if len(t) >= 3 or t in ('ii', 'iii', 'iv', 'jr')) if nom_comp_norm else set()
+            }
+            atletas_by_id[id_a] = cand_info
+            
+            # Clave 1: por nombre habitual
+            cache_exact.setdefault((nom_norm, sx), []).append(id_a)
+            # Clave 2: por nombre completo (ej: Michael Fred Phelps, II)
+            if nom_comp_norm and nom_comp_norm != nom_norm:
+                cache_exact.setdefault((nom_comp_norm, sx), []).append(id_a)
+                
+            for tok in (cand_info['tokens_nom'] | cand_info['tokens_comp']):
+                tok_key = (tok, sx)
+                if tok_key not in token_index:
+                    token_index[tok_key] = set()
+                token_index[tok_key].add(id_a)
+                
         print_ok(f"Atletas en catálogo maestro: {len(atletas_rows)}")
         
         # Medallas: tipo -> id_medalla
@@ -189,9 +286,26 @@ def cargar_enriquecimiento_kaggle():
         cursor.execute("SELECT nombre, id_noc, id_equipo FROM equipo;")
         cache_equipos = {(r[0], r[1]): r[2] for r in cursor.fetchall()}
         
-        # Participaciones existentes: (id_atleta, id_evento, id_olimpiada) -> id_participacion
-        cursor.execute("SELECT id_atleta, id_evento, id_olimpiada, id_participacion FROM participacion;")
-        cache_participaciones = {(r[0], r[1], r[2]): r[3] for r in cursor.fetchall()}
+        # Participaciones existentes:
+        cursor.execute("""
+            SELECT p.id_atleta, p.id_evento, p.id_olimpiada, p.id_participacion, e.nombre, p.id_medalla, p.edad
+            FROM participacion p
+            JOIN evento e ON p.id_evento = e.id_evento;
+        """)
+        part_rows = cursor.fetchall()
+        cache_participaciones = {(r[0], r[1], r[2]): r[3] for r in part_rows}
+        
+        # Índice de participaciones por atleta y olimpiada para enriquecer sin duplicar
+        part_by_atleta_olimp = {}
+        for r in part_rows:
+            id_a, id_ev, id_olimp, id_part, nom_ev, id_med, ed = r
+            part_by_atleta_olimp.setdefault((id_a, id_olimp), []).append({
+                'id_participacion': id_part,
+                'id_evento': id_ev,
+                'tokens': extract_event_tokens(nom_ev),
+                'id_medalla': id_med,
+                'has_edad': (ed is not None)
+            })
         print_ok(f"Participaciones preexistentes: {len(cache_participaciones)}")
         
         # =====================================================================
@@ -230,7 +344,7 @@ def cargar_enriquecimiento_kaggle():
             );
         """
         
-        for _, row in athlete_df.iterrows():
+        for idx, (_, row) in enumerate(athlete_df.iterrows()):
             nom_raw = row.get('Name')
             sex_raw = row.get('Sex')
             if pd.isna(nom_raw) or pd.isna(sex_raw):
@@ -252,25 +366,13 @@ def cargar_enriquecimiento_kaggle():
             anio_nac_aprox = (anio_edicion - edad) if (anio_edicion and edad) else None
             
             # -----------------------------------------------------------------
-            # A. Deduplicación de Atleta (DT-002)
+            # A. Deduplicación de Atleta (DT-002 / DT-025 Mejorada)
             # -----------------------------------------------------------------
-            key_atleta = (nom_norm, sexo)
-            id_atleta = None
+            id_atleta = buscar_o_resolver_atleta(
+                nom_clean, nom_norm, sexo, anio_edicion, anio_nac_aprox,
+                cache_exact, token_index, atletas_by_id, match_cache
+            )
             
-            if key_atleta in cache_atletas_matching:
-                candidatos = cache_atletas_matching[key_atleta]
-                # Si hay año aproximado, verificar coincidencia cronológica
-                if anio_nac_aprox is not None:
-                    for cand in candidatos:
-                        if cand['fecha_nac']:
-                            anio_cand = cand['fecha_nac'].year
-                            if abs(anio_cand - anio_nac_aprox) <= 1:
-                                id_atleta = cand['id_atleta']
-                                break
-                # Fallback: reutilizar primer candidato con mismo nombre y sexo
-                if not id_atleta and candidatos:
-                    id_atleta = candidatos[0]['id_atleta']
-                    
             if id_atleta:
                 atletas_reutilizados += 1
             else:
@@ -290,17 +392,26 @@ def cargar_enriquecimiento_kaggle():
                 atletas_nuevos_insertados += 1
                 
                 # Actualizar caché de atletas
-                if key_atleta not in cache_atletas_matching:
-                    cache_atletas_matching[key_atleta] = []
-                cache_atletas_matching[key_atleta].append({
+                cand_nuevo = {
                     'id_atleta': id_atleta,
                     'id_externo': None,
                     'nombre': nom_clean,
+                    'nombre_completo': None,
                     'sexo': sexo,
                     'fecha_nac': None,
                     'altura_cm': altura_reg,
-                    'peso_kg': peso_reg
-                })
+                    'peso_kg': peso_reg,
+                    'tokens_nom': set(t for t in nom_norm.split() if len(t) >= 3 or t in ('ii', 'iii', 'iv', 'jr')),
+                    'tokens_comp': set()
+                }
+                atletas_by_id[id_atleta] = cand_nuevo
+                cache_exact.setdefault((nom_norm, sexo), []).append(id_atleta)
+                match_cache[(nom_norm, sexo)] = id_atleta
+                for tok in cand_nuevo['tokens_nom']:
+                    tok_key = (tok, sexo)
+                    if tok_key not in token_index:
+                        token_index[tok_key] = set()
+                    token_index[tok_key].add(id_atleta)
                 
             # -----------------------------------------------------------------
             # B. Contexto: Olimpiada
@@ -401,15 +512,49 @@ def cargar_enriquecimiento_kaggle():
             # E. Participación: UPDATE o INSERT
             # -----------------------------------------------------------------
             key_part = (id_atleta, id_evento, id_olimpiada)
+            key_ao = (id_atleta, id_olimpiada)
             id_med = homologar_medalla(row.get('Medal'), cache_medallas)
+            ev_tokens = extract_event_tokens(nom_event)
             
+            id_part = None
+            
+            # 1. Coincidencia exacta por clave (id_atleta, id_evento, id_olimpiada)
             if key_part in cache_participaciones:
-                # Actualizar participación preexistente enriqueciendo métricas
                 id_part = cache_participaciones[key_part]
+            elif key_ao in part_by_atleta_olimp:
+                # 2. Búsqueda inteligente entre las participaciones preexistentes del atleta en esa edición
+                candidatos = part_by_atleta_olimp[key_ao]
+                if len(candidatos) == 1:
+                    cand = candidatos[0]
+                    overlap = len(ev_tokens & cand['tokens'])
+                    # Si sólo compitió en 1 evento o medalla coincide o tokens solapan
+                    if overlap > 0 or cand['id_medalla'] == id_med or not cand['has_edad']:
+                        id_part = cand['id_participacion']
+                        cand['has_edad'] = True
+                else:
+                    mejor_cand = None
+                    mejor_score = -1
+                    for cand in candidatos:
+                        overlap = len(ev_tokens & cand['tokens'])
+                        score = overlap
+                        if cand['id_medalla'] == id_med:
+                            score += 2
+                        if not cand['has_edad']:
+                            score += 1
+                        if score > mejor_score and (overlap >= 1 or cand['id_medalla'] == id_med):
+                            mejor_score = score
+                            mejor_cand = cand
+                    
+                    if mejor_cand and mejor_score >= 1:
+                        id_part = mejor_cand['id_participacion']
+                        mejor_cand['has_edad'] = True
+            
+            if id_part:
+                # Actualizar participación preexistente enriqueciendo métricas
                 cursor.execute(sql_update_part, (edad, altura_reg, peso_reg, id_part))
                 participaciones_actualizadas += 1
             else:
-                # Insertar nueva participación desde Kaggle
+                # Insertar nueva participación desde Kaggle (atleta o prueba exclusiva)
                 pos_medalla = homologar_posicion_desde_medalla(row.get('Medal'))
                 cursor.execute(sql_insert_part, (
                     id_atleta,
@@ -426,7 +571,18 @@ def cargar_enriquecimiento_kaggle():
                 ))
                 nuevo_id_part = cursor.lastrowid
                 cache_participaciones[key_part] = nuevo_id_part
+                part_by_atleta_olimp.setdefault(key_ao, []).append({
+                    'id_participacion': nuevo_id_part,
+                    'id_evento': id_evento,
+                    'tokens': ev_tokens,
+                    'id_medalla': id_med,
+                    'has_edad': (edad is not None)
+                })
                 participaciones_nuevas_insertadas += 1
+                
+            if (idx + 1) % 25000 == 0:
+                conn.commit()
+                print(f"  -> Progreso: {idx + 1}/{len(athlete_df)} filas ({((idx + 1)/len(athlete_df)*100):.1f}%) | nuevas part: {participaciones_nuevas_insertadas}, enriquecidas: {participaciones_actualizadas}...")
                 
         conn.commit()
         print_ok(f"Atletas de Kaggle procesados: nuevos={atletas_nuevos_insertados}, reutilizados={atletas_reutilizados}")

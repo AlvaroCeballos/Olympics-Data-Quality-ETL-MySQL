@@ -548,3 +548,154 @@ ORDER BY p.id_participacion;
 
 
 
+
+-- ============================================================================
+-- 5. PROCEDIMIENTOS ALMACENADOS OFICIALES (PERSONA 3: Ottoniel Vásquez)
+-- ============================================================================
+
+DROP PROCEDURE IF EXISTS sp_consultar_atleta;
+DELIMITER //
+CREATE PROCEDURE sp_consultar_atleta(
+    IN p_nombre VARCHAR(120),
+    IN p_anio SMALLINT,
+    IN p_deporte VARCHAR(120),
+    IN p_pais VARCHAR(120)
+)
+BEGIN
+    -- 1. Ficha Biográfica del Atleta
+    SELECT 
+        a.id_atleta, 
+        a.id_externo AS id_olympedia, 
+        a.nombre, 
+        a.nombre_completo,
+        a.sexo, 
+        a.fecha_nac, 
+        CONCAT(COALESCE(a.ciudad_nac, '-'), ', ', COALESCE(p_nac.nombre, '-')) AS lugar_nacimiento,
+        CONCAT(COALESCE(a.altura_cm, '-'), ' cm') AS altura_base, 
+        CONCAT(COALESCE(a.peso_kg, '-'), ' kg') AS peso_base,
+        a.apodo, 
+        a.afiliacion
+    FROM atleta a
+    LEFT JOIN pais p_nac ON a.id_pais_nac = p_nac.id_pais
+    WHERE a.nombre LIKE CONCAT('%', p_nombre, '%')
+       OR (a.nombre_completo IS NOT NULL AND a.nombre_completo LIKE CONCAT('%', p_nombre, '%'))
+    LIMIT 10;
+
+    -- 2. Historial Detallado de Participaciones
+    SELECT 
+        a.id_atleta,
+        a.nombre AS atleta, 
+        CONCAT(o.anio, ' ', o.temporada) AS edicion, 
+        s.ciudad AS ciudad_sede,
+        dep.nombre AS deporte, 
+        disc.nombre AS disciplina, 
+        e.nombre AS evento, 
+        eq.nombre AS equipo,
+        pa_eq.codigo_pais AS codigo_pais_rep, 
+        p.edad, 
+        p.posicion, 
+        p.es_empate, 
+        m.tipo AS medalla
+    FROM participacion p
+    JOIN atleta a ON p.id_atleta = a.id_atleta
+    JOIN olimpiada o ON p.id_olimpiada = o.id_olimpiada
+    JOIN sede s ON o.id_sede = s.id_sede
+    JOIN evento e ON p.id_evento = e.id_evento
+    JOIN disciplina disc ON e.id_disciplina = disc.id_disciplina
+    JOIN deporte dep ON disc.id_deporte = dep.id_deporte
+    JOIN equipo eq ON p.id_equipo = eq.id_equipo
+    JOIN noc n ON eq.id_noc = n.id_noc
+    LEFT JOIN pais pa_eq ON n.id_pais = pa_eq.id_pais
+    JOIN medalla m ON p.id_medalla = m.id_medalla
+    WHERE (a.nombre LIKE CONCAT('%', p_nombre, '%') OR (a.nombre_completo IS NOT NULL AND a.nombre_completo LIKE CONCAT('%', p_nombre, '%')))
+      AND (p_anio IS NULL OR o.anio = p_anio)
+      AND (p_deporte IS NULL OR dep.nombre LIKE CONCAT('%', p_deporte, '%'))
+      AND (
+          p_pais IS NULL 
+          OR (LENGTH(TRIM(p_pais)) = 3 AND (pa_eq.codigo_pais = UPPER(TRIM(p_pais)) OR n.codigo_noc = UPPER(TRIM(p_pais))))
+          OR (LENGTH(TRIM(p_pais)) > 3 AND (pa_eq.nombre = p_pais OR pa_eq.nombre LIKE CONCAT('%', p_pais, '%')))
+      )
+    ORDER BY o.anio ASC, e.nombre ASC;
+END //
+DELIMITER ;
+
+
+DROP PROCEDURE IF EXISTS sp_consultar_pais;
+DELIMITER //
+CREATE PROCEDURE sp_consultar_pais(
+    IN p_pais VARCHAR(120),
+    IN p_anio_inicio SMALLINT,
+    IN p_anio_fin SMALLINT,
+    IN p_solo_medallas BOOLEAN
+)
+BEGIN
+    -- 1. Historial de Sedes Albergadas por el País
+    SELECT 
+        p.codigo_pais, 
+        p.nombre AS pais, 
+        s.ciudad AS ciudad_sede, 
+        o.anio, 
+        o.temporada, 
+        o.nombre_juegos
+    FROM sede s 
+    JOIN pais p ON s.id_pais = p.id_pais 
+    JOIN olimpiada o ON o.id_sede = s.id_sede
+    WHERE (
+        (LENGTH(TRIM(p_pais)) = 3 AND p.codigo_pais = UPPER(TRIM(p_pais)))
+        OR (LENGTH(TRIM(p_pais)) > 3 AND (p.nombre = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%') OR p.nombre_alt LIKE CONCAT('%', p_pais, '%')))
+    )
+    ORDER BY o.anio;
+
+    -- 2. Medallero Histórico Consolidado del País
+    SELECT 
+        p.codigo_pais, 
+        p.nombre AS pais,
+        SUM(m.tipo = 'Gold') AS total_oro, 
+        SUM(m.tipo = 'Silver') AS total_plata, 
+        SUM(m.tipo = 'Bronze') AS total_bronce,
+        SUM(m.tipo IN ('Gold', 'Silver', 'Bronze')) AS total_medallas_podio, 
+        COUNT(*) AS total_participaciones_historicas
+    FROM participacion part
+    JOIN equipo eq ON part.id_equipo = eq.id_equipo 
+    JOIN noc n ON eq.id_noc = n.id_noc 
+    JOIN pais p ON n.id_pais = p.id_pais
+    JOIN medalla m ON part.id_medalla = m.id_medalla 
+    JOIN olimpiada o ON part.id_olimpiada = o.id_olimpiada
+    WHERE (
+        (LENGTH(TRIM(p_pais)) = 3 AND (p.codigo_pais = UPPER(TRIM(p_pais)) OR n.codigo_noc = UPPER(TRIM(p_pais))))
+        OR (LENGTH(TRIM(p_pais)) > 3 AND (p.nombre = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%') OR p.nombre_alt LIKE CONCAT('%', p_pais, '%')))
+    )
+      AND (p_anio_inicio IS NULL OR o.anio >= p_anio_inicio) 
+      AND (p_anio_fin IS NULL OR o.anio <= p_anio_fin)
+    GROUP BY p.codigo_pais, p.nombre;
+
+    -- 3. Desglose por Edición y Deporte/Disciplina (Control de volumen, sin SELECT * masivo)
+    SELECT 
+        o.anio, 
+        o.temporada, 
+        dep.nombre AS deporte, 
+        disc.nombre AS disciplina,
+        SUM(m.tipo = 'Gold') AS oro, 
+        SUM(m.tipo = 'Silver') AS plata, 
+        SUM(m.tipo = 'Bronze') AS bronce,
+        COUNT(*) AS total_atletas_participantes
+    FROM participacion part
+    JOIN equipo eq ON part.id_equipo = eq.id_equipo 
+    JOIN noc n ON eq.id_noc = n.id_noc 
+    JOIN pais p ON n.id_pais = p.id_pais
+    JOIN medalla m ON part.id_medalla = m.id_medalla 
+    JOIN olimpiada o ON part.id_olimpiada = o.id_olimpiada
+    JOIN evento e ON part.id_evento = e.id_evento 
+    JOIN disciplina disc ON e.id_disciplina = disc.id_disciplina 
+    JOIN deporte dep ON disc.id_deporte = dep.id_deporte
+    WHERE (
+        (LENGTH(TRIM(p_pais)) = 3 AND (p.codigo_pais = UPPER(TRIM(p_pais)) OR n.codigo_noc = UPPER(TRIM(p_pais))))
+        OR (LENGTH(TRIM(p_pais)) > 3 AND (p.nombre = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%') OR p.nombre_alt LIKE CONCAT('%', p_pais, '%')))
+    )
+      AND (p_anio_inicio IS NULL OR o.anio >= p_anio_inicio) 
+      AND (p_anio_fin IS NULL OR o.anio <= p_anio_fin)
+      AND (p_solo_medallas IS NULL OR p_solo_medallas IS FALSE OR (p_solo_medallas IS TRUE AND m.tipo != 'NA'))
+    GROUP BY o.anio, o.temporada, dep.nombre, disc.nombre
+    ORDER BY o.anio ASC, dep.nombre ASC;
+END //
+DELIMITER ;

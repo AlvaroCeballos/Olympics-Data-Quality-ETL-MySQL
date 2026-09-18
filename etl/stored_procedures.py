@@ -43,6 +43,7 @@ def crear_procedimientos():
         FROM atleta a
         LEFT JOIN pais p_nac ON a.id_pais_nac = p_nac.id_pais
         WHERE a.nombre LIKE CONCAT('%', p_nombre, '%')
+           OR (a.nombre_completo IS NOT NULL AND a.nombre_completo LIKE CONCAT('%', p_nombre, '%'))
         LIMIT 10;
 
         SELECT 
@@ -61,10 +62,14 @@ def crear_procedimientos():
         JOIN noc n ON eq.id_noc = n.id_noc
         LEFT JOIN pais pa_eq ON n.id_pais = pa_eq.id_pais
         JOIN medalla m ON p.id_medalla = m.id_medalla
-        WHERE a.nombre LIKE CONCAT('%', p_nombre, '%')
+        WHERE (a.nombre LIKE CONCAT('%', p_nombre, '%') OR (a.nombre_completo IS NOT NULL AND a.nombre_completo LIKE CONCAT('%', p_nombre, '%')))
           AND (p_anio IS NULL OR o.anio = p_anio)
           AND (p_deporte IS NULL OR dep.nombre LIKE CONCAT('%', p_deporte, '%'))
-          AND (p_pais IS NULL OR pa_eq.codigo_pais = p_pais OR pa_eq.nombre LIKE CONCAT('%', p_pais, '%'))
+          AND (
+              p_pais IS NULL 
+              OR (LENGTH(TRIM(p_pais)) = 3 AND (pa_eq.codigo_pais = UPPER(TRIM(p_pais)) OR n.codigo_noc = UPPER(TRIM(p_pais))))
+              OR (LENGTH(TRIM(p_pais)) > 3 AND (pa_eq.nombre = p_pais OR pa_eq.nombre LIKE CONCAT('%', p_pais, '%')))
+          )
         ORDER BY o.anio ASC, e.nombre ASC;
     END;
     """
@@ -80,7 +85,10 @@ def crear_procedimientos():
     BEGIN
         SELECT p.codigo_pais, p.nombre AS pais, s.ciudad AS ciudad_sede, o.anio, o.temporada, o.nombre_juegos
         FROM sede s JOIN pais p ON s.id_pais = p.id_pais JOIN olimpiada o ON o.id_sede = s.id_sede
-        WHERE (p.codigo_pais = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%'))
+        WHERE (
+            (LENGTH(TRIM(p_pais)) = 3 AND p.codigo_pais = UPPER(TRIM(p_pais)))
+            OR (LENGTH(TRIM(p_pais)) > 3 AND (p.nombre = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%') OR p.nombre_alt LIKE CONCAT('%', p_pais, '%')))
+        )
         ORDER BY o.anio;
 
         SELECT p.codigo_pais, p.nombre AS pais,
@@ -89,7 +97,10 @@ def crear_procedimientos():
         FROM participacion part
         JOIN equipo eq ON part.id_equipo = eq.id_equipo JOIN noc n ON eq.id_noc = n.id_noc JOIN pais p ON n.id_pais = p.id_pais
         JOIN medalla m ON part.id_medalla = m.id_medalla JOIN olimpiada o ON part.id_olimpiada = o.id_olimpiada
-        WHERE (p.codigo_pais = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%'))
+        WHERE (
+            (LENGTH(TRIM(p_pais)) = 3 AND (p.codigo_pais = UPPER(TRIM(p_pais)) OR n.codigo_noc = UPPER(TRIM(p_pais))))
+            OR (LENGTH(TRIM(p_pais)) > 3 AND (p.nombre = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%') OR p.nombre_alt LIKE CONCAT('%', p_pais, '%')))
+        )
           AND (p_anio_inicio IS NULL OR o.anio >= p_anio_inicio) AND (p_anio_fin IS NULL OR o.anio <= p_anio_fin)
         GROUP BY p.codigo_pais, p.nombre;
 
@@ -100,7 +111,10 @@ def crear_procedimientos():
         JOIN equipo eq ON part.id_equipo = eq.id_equipo JOIN noc n ON eq.id_noc = n.id_noc JOIN pais p ON n.id_pais = p.id_pais
         JOIN medalla m ON part.id_medalla = m.id_medalla JOIN olimpiada o ON part.id_olimpiada = o.id_olimpiada
         JOIN evento e ON part.id_evento = e.id_evento JOIN disciplina disc ON e.id_disciplina = disc.id_disciplina JOIN deporte dep ON disc.id_deporte = dep.id_deporte
-        WHERE (p.codigo_pais = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%'))
+        WHERE (
+            (LENGTH(TRIM(p_pais)) = 3 AND (p.codigo_pais = UPPER(TRIM(p_pais)) OR n.codigo_noc = UPPER(TRIM(p_pais))))
+            OR (LENGTH(TRIM(p_pais)) > 3 AND (p.nombre = p_pais OR p.nombre LIKE CONCAT('%', p_pais, '%') OR p.nombre_alt LIKE CONCAT('%', p_pais, '%')))
+        )
           AND (p_anio_inicio IS NULL OR o.anio >= p_anio_inicio) AND (p_anio_fin IS NULL OR o.anio <= p_anio_fin)
           AND (p_solo_medallas IS NULL OR p_solo_medallas IS FALSE OR (p_solo_medallas IS TRUE AND m.tipo != 'NA'))
         GROUP BY o.anio, o.temporada, dep.nombre, disc.nombre

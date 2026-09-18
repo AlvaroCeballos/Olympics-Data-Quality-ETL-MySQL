@@ -39,6 +39,7 @@ from utils import (
     get_connection,
     fix_mojibake,
     normalize_name,
+    extract_event_tokens,
     resolve_data_file,
     print_section,
     print_ok,
@@ -55,26 +56,78 @@ from fase4_participacion_base import homologar_medalla
 from fase5_enriquecimiento import homologar_posicion_desde_medalla
 
 
-def buscar_atleta_existente(nombre_norm, sexo, cache_atletas_matching):
+def buscar_atleta_existente(nombre_norm, sexo, anio_edicion,
+                            cache_atletas_exact, token_index=None, atletas_by_id=None, match_cache=None):
     """
     Busca si el atleta ya existe en el catálogo unificado aplicando:
-      1. Coincidencia exacta de (nombre_norm, sexo).
-      2. Coincidencia por subconjunto de tokens (ej. 'gunnar aaby' en 'gunnar nielsen aaby').
+      1. Caché de resolución previa (memoización O(1)).
+      2. Coincidencia exacta de (nombre_norm, sexo) (O(1)) sobre nombre y nombre_completo.
+      3. Coincidencia por subconjunto de tokens estricta (mínimo 2 tokens significativos y coherencia cronológica).
     """
     key_exacta = (nombre_norm, sexo)
-    if key_exacta in cache_atletas_matching and cache_atletas_matching[key_exacta]:
-        return cache_atletas_matching[key_exacta][0]['id_atleta']
+    if match_cache is not None and key_exacta in match_cache:
+        return match_cache[key_exacta]
+
+    # 1. Coincidencia exacta O(1)
+    if key_exacta in cache_atletas_exact and cache_atletas_exact[key_exacta]:
+        res_id = cache_atletas_exact[key_exacta][0]
+        if match_cache is not None:
+            match_cache[key_exacta] = res_id
+        return res_id
         
-    tokens_busqueda = set(nombre_norm.split())
-    if not tokens_busqueda:
+    # 2. Coincidencia por subconjunto de tokens (permitir números romanos como ii, iii, iv, jr)
+    tokens_busqueda = set(t for t in nombre_norm.split() if len(t) >= 3 or t in ('ii', 'iii', 'iv', 'jr'))
+    # REGLA FUNDAMENTAL: Monónimos (1 sola palabra como "William", "David") NUNCA coinciden por subconjunto.
+    # Evita que decenas de atletas con un nombre común se fusionen en un único ID.
+    if len(tokens_busqueda) < 2:
+        if match_cache is not None:
+            match_cache[key_exacta] = None
         return None
         
-    for (cand_norm, cand_sexo), lista_cands in cache_atletas_matching.items():
-        if cand_sexo == sexo:
-            tokens_cand = set(cand_norm.split())
-            if tokens_busqueda.issubset(tokens_cand) or tokens_cand.issubset(tokens_busqueda):
-                return lista_cands[0]['id_atleta']
+    candidatos_ids = set()
+    if token_index is not None:
+        for tok in tokens_busqueda:
+            tok_key = (tok, sexo)
+            if tok_key in token_index:
+                candidatos_ids.update(token_index[tok_key])
+    elif atletas_by_id is not None:
+        candidatos_ids = set(atletas_by_id.keys())
+
+    if atletas_by_id is not None:
+        for cid in candidatos_ids:
+            cand = atletas_by_id[cid]
+            if cand['sexo'] != sexo:
+                continue
+
+            # Coherencia cronológica (un atleta no puede competir con menos de 10 o más de 75 años)
+            if anio_edicion and cand.get('fecha_nac'):
+                edad = anio_edicion - cand['fecha_nac'].year
+                if edad < 10 or edad > 75:
+                    continue
+
+            tokens_cand_nom = cand.get('tokens_nom', set())
+            tokens_cand_comp = cand.get('tokens_comp', set())
+
+            # El nombre del catálogo está contenido en la búsqueda
+            if len(tokens_cand_nom) >= 2 and tokens_cand_nom.issubset(tokens_busqueda):
+                if match_cache is not None:
+                    match_cache[key_exacta] = cid
+                return cid
+
+            # El nombre completo del catálogo contiene la búsqueda
+            if len(tokens_busqueda) >= 2 and tokens_cand_comp and tokens_busqueda.issubset(tokens_cand_comp):
+                if match_cache is not None:
+                    match_cache[key_exacta] = cid
+                return cid
+
+            # El nombre completo del catálogo es subconjunto de la búsqueda
+            if len(tokens_cand_comp) >= 2 and tokens_cand_comp.issubset(tokens_busqueda):
+                if match_cache is not None:
+                    match_cache[key_exacta] = cid
+                return cid
                 
+    if match_cache is not None:
+        match_cache[key_exacta] = None
     return None
 
 
@@ -103,23 +156,44 @@ def cargar_actualizacion_fuente3():
         # =====================================================================
         print_section("6.1 Carga de cachés en memoria")
         
-        # Atletas para deduplicación: (nombre_norm, sexo) -> lista
-        cursor.execute("SELECT id_atleta, id_externo, nombre, sexo FROM atleta;")
-        cache_atletas_matching = {}
+        # Atletas para deduplicación: (nombre_norm, sexo) -> lista de IDs
+        cursor.execute("SELECT id_atleta, id_externo, nombre, nombre_completo, sexo, fecha_nac FROM atleta;")
+        cache_atletas_exact = {}
+        token_index = {}
+        atletas_by_id = {}
+        match_cache = {}
         total_atletas_inicio = 0
-        for id_a, id_ext, nom, sx in cursor.fetchall():
+        for id_a, id_ext, nom, nom_comp, sx, fn in cursor.fetchall():
             total_atletas_inicio += 1
             nom_norm = normalize_name(nom)
-            key = (nom_norm, sx)
-            if key not in cache_atletas_matching:
-                cache_atletas_matching[key] = []
-            cache_atletas_matching[key].append({
+            nom_comp_norm = normalize_name(nom_comp) if nom_comp else None
+            
+            cand_obj = {
                 'id_atleta': id_a,
                 'id_externo': id_ext,
                 'nombre': nom,
+                'nombre_completo': nom_comp,
                 'sexo': sx,
-                'nom_norm': nom_norm
-            })
+                'fecha_nac': fn,
+                'tokens_nom': set(t for t in nom_norm.split() if len(t) >= 3 or t in ('ii', 'iii', 'iv', 'jr')),
+                'tokens_comp': set(t for t in nom_comp_norm.split() if len(t) >= 3 or t in ('ii', 'iii', 'iv', 'jr')) if nom_comp_norm else set()
+            }
+            atletas_by_id[id_a] = cand_obj
+            
+            # Indexar por nombre habitual
+            cache_atletas_exact.setdefault((nom_norm, sx), []).append(id_a)
+            
+            # Indexar por nombre completo
+            if nom_comp_norm and nom_comp_norm != nom_norm:
+                cache_atletas_exact.setdefault((nom_comp_norm, sx), []).append(id_a)
+                
+            # Índice invertido de tokens
+            for tok in (cand_obj['tokens_nom'] | cand_obj['tokens_comp']):
+                tok_key = (tok, sx)
+                if tok_key not in token_index:
+                    token_index[tok_key] = set()
+                token_index[tok_key].add(id_a)
+                    
         print_ok(f"Atletas en catálogo maestro: {total_atletas_inicio}")
         
         # Medallas: tipo -> id_medalla
@@ -155,9 +229,25 @@ def cargar_actualizacion_fuente3():
         cursor.execute("SELECT nombre, id_noc, id_equipo FROM equipo;")
         cache_equipos = {(r[0], r[1]): r[2] for r in cursor.fetchall()}
         
-        # Participaciones existentes: (id_atleta, id_evento, id_olimpiada) -> (id_participacion, id_medalla)
-        cursor.execute("SELECT id_atleta, id_evento, id_olimpiada, id_participacion, id_medalla FROM participacion;")
-        cache_participaciones = {(r[0], r[1], r[2]): (r[3], r[4]) for r in cursor.fetchall()}
+        # Participaciones existentes:
+        cursor.execute("""
+            SELECT p.id_atleta, p.id_evento, p.id_olimpiada, p.id_participacion, p.id_medalla, e.nombre
+            FROM participacion p
+            JOIN evento e ON p.id_evento = e.id_evento;
+        """)
+        part_rows = cursor.fetchall()
+        cache_participaciones = {(r[0], r[1], r[2]): (r[3], r[4]) for r in part_rows}
+        
+        part_by_atleta_olimp = {}
+        for r in part_rows:
+            id_a, id_ev, id_olimp, id_part, id_med, nom_ev = r
+            part_by_atleta_olimp.setdefault((id_a, id_olimp), []).append({
+                'id_participacion': id_part,
+                'id_evento': id_ev,
+                'tokens': extract_event_tokens(nom_ev),
+                'id_medalla': id_med,
+                'has_medalla_real': (id_med != id_medalla_na)
+            })
         print_ok(f"Participaciones preexistentes: {len(cache_participaciones)}")
         
         # =====================================================================
@@ -196,7 +286,7 @@ def cargar_actualizacion_fuente3():
         part_actualizadas = 0
         part_duplicadas_ignoradas = 0
         
-        for _, row in df_f3.iterrows():
+        for idx, (_, row) in enumerate(df_f3.iterrows()):
             nom_raw = row.get('Name')
             sex_raw = row.get('Sex')
             if pd.isna(nom_raw) or pd.isna(sex_raw):
@@ -212,9 +302,12 @@ def cargar_actualizacion_fuente3():
             temporada = fix_mojibake(str(row.get('Season'))).strip() if pd.notna(row.get('Season')) else 'Summer'
             
             # -----------------------------------------------------------------
-            # A. Deduplicación de Atleta (DT-002)
+            # A. Deduplicación de Atleta (DT-002 / DT-025 Mejorada)
             # -----------------------------------------------------------------
-            id_atleta = buscar_atleta_existente(nom_norm, sexo, cache_atletas_matching)
+            id_atleta = buscar_atleta_existente(
+                nom_norm, sexo, anio,
+                cache_atletas_exact, token_index, atletas_by_id, match_cache
+            )
             
             if id_atleta:
                 atletas_reutilizados += 1
@@ -224,16 +317,25 @@ def cargar_actualizacion_fuente3():
                 id_atleta = cursor.lastrowid
                 atletas_nuevos += 1
                 
-                key_match = (nom_norm, sexo)
-                if key_match not in cache_atletas_matching:
-                    cache_atletas_matching[key_match] = []
-                cache_atletas_matching[key_match].append({
+                cand_nuevo = {
                     'id_atleta': id_atleta,
                     'id_externo': None,
                     'nombre': nom_clean,
+                    'nombre_completo': None,
                     'sexo': sexo,
-                    'nom_norm': nom_norm
-                })
+                    'fecha_nac': None,
+                    'tokens_nom': set(t for t in nom_norm.split() if len(t) >= 3 or t in ('ii', 'iii', 'iv', 'jr')),
+                    'tokens_comp': set()
+                }
+                atletas_by_id[id_atleta] = cand_nuevo
+                
+                cache_atletas_exact.setdefault((nom_norm, sexo), []).append(id_atleta)
+                match_cache[(nom_norm, sexo)] = id_atleta
+                for tok in cand_nuevo['tokens_nom']:
+                    tok_key = (tok, sexo)
+                    if tok_key not in token_index:
+                        token_index[tok_key] = set()
+                    token_index[tok_key].add(id_atleta)
 
             # -----------------------------------------------------------------
             # B. Contexto: Sede y Olimpiada
@@ -334,11 +436,41 @@ def cargar_actualizacion_fuente3():
             # E. Participación: UPDATE o INSERT
             # -----------------------------------------------------------------
             key_part = (id_atleta, id_evento, id_olimpiada)
+            key_ao = (id_atleta, id_olimpiada)
             id_med = homologar_medalla(row.get('Medal'), cache_medallas)
             pos_medalla = homologar_posicion_desde_medalla(row.get('Medal'))
+            ev_tokens = extract_event_tokens(nom_event)
+            
+            id_part_existente = None
+            id_med_existente = None
             
             if key_part in cache_participaciones:
                 id_part_existente, id_med_existente = cache_participaciones[key_part]
+            elif key_ao in part_by_atleta_olimp:
+                # Búsqueda inteligente entre participaciones preexistentes del atleta en esa edición
+                candidatos = part_by_atleta_olimp[key_ao]
+                if len(candidatos) == 1:
+                    cand = candidatos[0]
+                    overlap = len(ev_tokens & cand['tokens'])
+                    if overlap > 0 or cand['id_medalla'] == id_med or (anio is not None and anio < 2024):
+                        id_part_existente = cand['id_participacion']
+                        id_med_existente = cand['id_medalla']
+                else:
+                    mejor_cand = None
+                    mejor_score = -1
+                    for cand in candidatos:
+                        overlap = len(ev_tokens & cand['tokens'])
+                        score = overlap
+                        if cand['id_medalla'] == id_med:
+                            score += 2
+                        if score > mejor_score and (overlap >= 1 or cand['id_medalla'] == id_med):
+                            mejor_score = score
+                            mejor_cand = cand
+                    if mejor_cand and mejor_score >= 1:
+                        id_part_existente = mejor_cand['id_participacion']
+                        id_med_existente = mejor_cand['id_medalla']
+            
+            if id_part_existente:
                 # Si la existente no tenía medalla (era NA) y en Fuente 3 sí tiene medalla real:
                 if id_med_existente == id_medalla_na and id_med != id_medalla_na:
                     cursor.execute(sql_update_part_medalla, (id_med, pos_medalla, id_part_existente))
@@ -358,7 +490,18 @@ def cargar_actualizacion_fuente3():
                 ))
                 nuevo_id_part = cursor.lastrowid
                 cache_participaciones[key_part] = (nuevo_id_part, id_med)
+                part_by_atleta_olimp.setdefault(key_ao, []).append({
+                    'id_participacion': nuevo_id_part,
+                    'id_evento': id_evento,
+                    'tokens': ev_tokens,
+                    'id_medalla': id_med,
+                    'has_medalla_real': (id_med != id_medalla_na)
+                })
                 part_nuevas += 1
+                
+            if (idx + 1) % 25000 == 0:
+                conn.commit()
+                print(f"  -> Progreso: {idx + 1}/{len(df_f3)} filas ({((idx + 1)/len(df_f3)*100):.1f}%) | nuevas part: {part_nuevas}, actualizadas: {part_actualizadas}...")
                 
         conn.commit()
         print_ok(f"Atletas Fuente 3: nuevos={atletas_nuevos}, reutilizados={atletas_reutilizados}")

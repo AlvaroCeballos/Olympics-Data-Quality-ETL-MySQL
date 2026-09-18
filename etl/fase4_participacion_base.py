@@ -170,7 +170,7 @@ def cargar_participacion_base():
         omitidas_duplicadas = 0
         omitidas_sin_atleta = 0
         
-        for _, row in results_df.iterrows():
+        for idx, (_, row) in enumerate(results_df.iterrows()):
             aid_raw = row.get('athlete_id')
             if pd.isna(aid_raw):
                 continue
@@ -271,6 +271,10 @@ def cargar_participacion_base():
             ))
             cache_participaciones[key_part] = cursor.lastrowid
             insertadas += 1
+            
+            if (idx + 1) % 25000 == 0:
+                conn.commit()
+                print(f"  -> Progreso: {idx + 1}/{len(results_df)} participaciones ({((idx + 1)/len(results_df)*100):.1f}%)...")
             
         conn.commit()
         print_ok(f"Participaciones procesadas: {len(results_df)} "
