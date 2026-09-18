@@ -9,8 +9,8 @@
 
 * **Deduplicación de atletas (`athlete_id` / `ID` / `player_id`):**
   * **Fuente de verdad maestra:** Se toma la base biográfica de Olympedia (`bios1.csv` crudo enriquecido con coordenadas de `clean-data/bios_locs.csv`) como el catálogo maestro inicial para la tabla `atleta`. Su identificador original se almacena en el atributo `atleta.id_externo`.
-  * **Clave de cruce en memoria (`matching key`):** El cruce entre fuentes se ejecuta mediante la tupla normalizada `(nombre_normalizado, sexo, anio_nacimiento_aprox)`. El campo `nombre_normalizado` se procesa convirtiéndolo a minúsculas, retirando acentos y diacríticos (normalización Unicode NFKD), eliminando signos de puntuación y suprimiendo el carácter separador viñeta (`•`).
-  * **Resolución de inserción:** Si un registro de Kaggle o de París 2024 coincide con un atleta existente, se reutiliza su `id_atleta` (clave primaria autoincremental). Si no existe coincidencia previa en el maestro, se inserta una nueva tupla en `atleta` asignando `id_externo = NULL`.
+  * **Clave de cruce en memoria (`matching key`):** El cruce entre fuentes se ejecuta mediante la tupla normalizada `(nombre_normalizado, sexo, anio_nacimiento_aprox)`. El campo `nombre_normalizado` se procesa convirtiéndolo a minúsculas, retirando acentos y diacríticos (normalización Unicode NFKD), sustituyendo signos de puntuación por espacios (evitando la fusión de palabras en guiones como `Jean-Pierre` $\rightarrow$ `jean pierre`), suprimiendo el carácter separador viñeta (`•`), aplicando un diccionario fonético-ortográfico de restauración de vocales mutiladas por scraping defectuoso (`_CORRUPTED_TOKEN_MAP`), y admitiendo sufijos dinásticos y numerales romanos (`ii`, `iii`, `iv`, `jr`).
+  * **Resolución de inserción:** Si un registro de Kaggle o de París 2024 coincide con un atleta existente (por clave canónica o por subconjunto estricto de tokens $\ge 3$ caracteres o sufijos dinásticos), se reutiliza su `id_atleta` (clave primaria autoincremental). Se prohíbe el emparejamiento por subconjunto en monónimos aislados para proteger homónimos. Si no existe coincidencia previa en el maestro, se inserta una nueva tupla en `atleta` asignando `id_externo = NULL`.
 
 * **Jerarquía Deporte -> Disciplina -> Evento ("Disciplina Puente"):**
   * **Confirmación de la regla:** Se ratifica la implementación de la disciplina puente para todas las fuentes.
@@ -51,8 +51,8 @@
   * `bios_locs.csv` se emplea exclusivamente para extraer las columnas de latitud y longitud calculadas previamente, asociándolas al atleta mediante `athlete_id` sin necesidad de ejecutar llamadas lentas a APIs externas de geocodificación.
 * **Estrategia de carga por capas:**
   * **Capa Base (Fuente 1):** Procesa la data cruda biográfica y de resultados de Olympedia (1896–2022).
-  * **Capa de Enriquecimiento (Fuente 2 y 4):** Cruza `athlete_events.csv` para registrar la edad, altura y peso específicos de la edición en la tabla `participacion`.
-  * **Capa de Actualización (Fuente 3):** Cruza `olympics_dataset.csv` para añadir los resultados y medallistas de Tokio 2020 y París 2024 que no existían en las fuentes anteriores.
+  * **Capa de Enriquecimiento (Fuente 2 y 4):** Cruza `athlete_events.csv` mediante un `UPDATE` no destructivo sobre las participaciones existentes emparejadas por atleta y edición `(id_atleta, id_olimpiada)` mediante solapamiento léxico de tokens del evento (`extract_event_tokens`) y coincidencia de medalla, registrando la edad, altura y peso específicos de la edición en la tabla `participacion` sin duplicar filas transaccionales ni preseas.
+  * **Capa de Actualización (Fuente 3):** Cruza `olympics_dataset.csv` para añadir los resultados y medallistas de Tokio 2020 y París 2024 que no existían en las fuentes anteriores. Para ediciones históricas ($\le 2016$), actualiza de forma idempotente las medallas que figuraban como `'NA'` a preseas de podio sin duplicar participaciones.
 
 ---
 
@@ -67,7 +67,7 @@
    ├── 4. Mapeo categórico (Sex: 'Male'/'Female' -> 'M'/'F'; Medallas: NaN -> 'NA')
    ├── 5. Estandarización de ediciones (Games -> Year + Season + City)
    ├── 6. Pivoteo demográfico de populations.csv (formato ancho a filas)
-   ├── 7. Integración de Fuentes 2 y 4 (edad, altura_reg, peso_reg)
+   ├── 7. Integración de Fuentes 2 y 4 (UPDATE no destructivo de edad, altura_reg, peso_reg)
    ├── 8. Incorporación de Fuente 3 (ediciones 2020 y 2024)
    └── 9. Inserción directa en MySQL respetando orden de dependencias
 ```

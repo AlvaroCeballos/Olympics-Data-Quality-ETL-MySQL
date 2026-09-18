@@ -14,9 +14,9 @@
 ## DT-002: Clave de cruce cross-source (deduplicación)
 
 - **Decisión:** Matching key = `(nombre_normalizado, sexo, anio_nacimiento_aprox)`.
-- **Normalización del nombre:** minúsculas → NFKD (quitar acentos) → quitar puntuación → quitar bullet (`•`).
+- **Normalización del nombre:** minúsculas → NFKD (quitar acentos) → sustitución de signos de puntuación por espacios (evitando fusión de palabras en guiones como `Jean-Pierre` $\rightarrow$ `jean pierre`) → supresión de viñeta (`•`) → aplicación de diccionario de restauración fonético-ortográfica de vocales mutiladas (`_CORRUPTED_TOKEN_MAP`) → admisión de sufijos dinásticos y numerales romanos (`ii`, `iii`, `iv`, `jr`).
 - **Razón:** Los `athlete_id` / `ID` / `player_id` son secuenciales independientes entre fuentes y no son cruzables. El nombre + sexo + año de nacimiento es la tupla más discriminante disponible.
-- **Resolución:** Si match existe → reutilizar `id_atleta`. Si no → insertar nuevo atleta con `id_externo = NULL`.
+- **Resolución:** Si match existe → reutilizar `id_atleta`. Si no → insertar nuevo atleta con `id_externo = NULL`. El matching admite búsqueda por clave canónica exacta y por subconjunto de tokens ($\ge 3$ caracteres o sufijos dinásticos), prohibiendo emparejamientos por subconjunto cuando la búsqueda consta de un monónimo simple para evitar colisiones entre homónimos.
 
 ## DT-003: Disciplina puente
 
@@ -53,8 +53,8 @@
 ## DT-007: Estrategia de carga por capas
 
 - **Capa Base (Fuente 1):** Olympedia cruda (bios + results) → puebla atletas maestros + participaciones históricas con `Discipline`, `Pos`, `As`.
-- **Capa Enriquecimiento (Fuente 2/4):** Kaggle `athlete_events.csv` → agrega `edad`, `altura_reg`, `peso_reg` por edición a `participacion`. Aporta `City` (sede) y `Sport`.
-- **Capa Actualización (Fuente 3):** Kaggle `olympics_dataset.csv` → incorpora resultados de Tokio 2020 y París 2024 no presentes en otras fuentes.
+- **Capa Enriquecimiento (Fuente 2/4):** Kaggle `athlete_events.csv` → enriquece `edad`, `altura_reg`, `peso_reg` por edición en `participacion` mediante `UPDATE` no destructivo. Cruza participaciones preexistentes del atleta mediante índice en memoria `(id_atleta, id_olimpiada)` y algoritmo de solapamiento léxico de tokens de evento (`extract_event_tokens`) y coincidencia de medalla, evitando insertar registros duplicados por discrepancias de redacción en los eventos. Aporta `City` (sede) y `Sport`.
+- **Capa Actualización (Fuente 3):** Kaggle `olympics_dataset.csv` → incorpora resultados y nuevos eventos de Tokio 2020 y París 2024 no presentes en otras fuentes. Para ediciones históricas ($\le 2016$), únicamente actualiza medallas que figuraban como `'NA'` a preseas de podio de forma idempotente, sin generar participaciones redundantes.
 
 ## DT-008: Orden de inserción en MySQL
 
@@ -164,8 +164,26 @@ Secuencia estricta respetando dependencias FK:
 ## DT-025: Deduplicación por tokens y enriquecimiento de preseas entre fuentes Kaggle
 
 - **Decisión:** En la Fuente 3 (`olympics_dataset.csv`), se implementó matching de atletas por coincidencia de subconjunto de tokens de nombres normalizados (ej. `"gunnar aaby"` como subconjunto de `"gunnar nielsen aaby"`), evitando duplicar atletas que aparecen con segundo nombre en una fuente y abreviados en otra. Si una participación ya existía registrada como `'NA'` pero la Fuente 3 reporta medalla de podio (`Gold`, `Silver`, `Bronze`), se actualiza la medalla en `participacion` de forma idempotente sin duplicar el hecho.
-- **Razón:** Integridad del modelo de hechos. Garantiza que la tabla `participacion` refleje la versión más precisa del resultado olímpico sin incurrir en duplicaciones de la clave compuesta natural `(id_atleta, id_evento, id_olimpiada)`.
+- **Razón:** Integridad del modelo de hechos. Garantiza que la tabla `participacion` refleje la versión más precisa del resultado olímpico sin duplicar filas transaccionales históricas.
+
+## DT-026: Enriquecimiento no destructivo de participaciones mediante solapamiento léxico de eventos (`extract_event_tokens`)
+
+- **Decisión:** En `fase5_enriquecimiento.py`, la deduplicación de participaciones no se limita a la igualdad exacta de `(id_atleta, id_evento, id_olimpiada)`. Se indexan las participaciones existentes en memoria por `(id_atleta, id_olimpiada)`. Al procesar un registro de Kaggle, se buscan las pruebas del atleta en esa edición evaluando:
+  1. Coincidencia exacta de `id_evento`.
+  2. Coincidencia por solapamiento de tokens normalizados de evento (función `extract_event_tokens`, que remueve stop-words de género y modalidad como `'men'`, `'women'`, `'individual'`, y unifica `'km'` $\rightarrow$ `'kilometres'`, `'m'` $\rightarrow$ `'metres'`).
+  3. Coincidencia del tipo de medalla obtenida.
+  Si hay coincidencia, se ejecuta un `UPDATE` enriqueciendo exclusivamente `edad`, `altura_reg` y `peso_reg` con `COALESCE`. Solo si no existe ninguna coincidencia en la edición se inserta una nueva participación.
+- **Razón:** Los eventos en Olympedia y Kaggle difieren en su redacción textual (ej. `"100 metres Butterfly, Men (Olympic)"` vs `"Swimming Men's 100 metres Butterfly"`), lo que genera distintos `id_evento` en la dimensión `evento`. Sin esta regla, el ETL insertaba cientos de miles de participaciones duplicadas, duplicando erróneamente las medallas de atletas históricos como Michael Phelps (46 oros en vez de 23) o Ray Ewry (20 oros en vez de 11).
+
+## DT-027: Normalización de alta fidelidad para mitigación de scraping defectuoso y preservación de sufijos dinásticos
+
+- **Decisión:**
+  1. Se modificó la limpieza de puntuación en `normalize_name` reemplazando los caracteres no alfanuméricos por un espacio (`re.sub(r'[^\w\s]', ' ', result)`), en lugar de eliminarlos en seco.
+  2. Se incorporó el diccionario `_CORRUPTED_TOKEN_MAP` para restaurar apellidos hispanos mutilados por raspadores que eliminan acentos sin decodificación adecuada (`'garca'` $\rightarrow$ `'garcia'`, `'lpez'` $\rightarrow$ `'lopez'`, etc.).
+  3. Se amplió el extractor de tokens para conservar numerales romanos y sufijos de linaje (`'ii'`, `'iii'`, `'iv'`, `'jr'`), permitiendo el emparejamiento por subconjunto de tokens de atletas truncados en origen (ej. `"Michael Ii"` $\rightarrow$ `{'michael', 'ii'}` contra `"Michael Fred Phelps, II"` $\rightarrow$ `{'michael', 'fred', 'phelps', 'ii'}`).
+- **Razón:** Previene la creación de atletas fantasma (`Erick Garca`, `Michael Ii`) y soluciona la desvinculación de atletas legítimos con nombres compuestos o con guiones (ej. `"Jean-Pierre Brol"` vs `"Pierre Brol"`).
 
 ---
 
-*Última actualización: 2026-09-13 — Ejecución y documentación de la Fase 6 (Actualización Fuente 3: olympics_dataset.csv).*
+*Última actualización: 2026-09-18 — Incorporación de DT-026 y DT-027 tras la resolución integral de anomalías detectadas en auditoría de consultas (`repaso.sql`) y certificación definitiva del esquema.*
+
