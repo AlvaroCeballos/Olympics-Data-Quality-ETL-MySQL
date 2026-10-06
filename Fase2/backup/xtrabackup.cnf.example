@@ -1,0 +1,9 @@
+# Copiar como xtrabackup.cnf y usar el mismo password definido en Fase2/.env.
+[client]
+user=root
+password=Cambiar_Esta_Clave_Local_2026
+host=mysql
+port=3306
+
+[xtrabackup]
+datadir=/var/lib/mysql
