@@ -49,11 +49,16 @@ Valida la configuración de Compose:
 docker compose --project-directory Fase2 --env-file Fase2/.env -f Fase2/docker-compose.yml config --quiet
 ```
 
-Levanta la instancia:
+Levanta la instancia de una de estas dos formas:
+
+- Doble clic en `Fase2/Start.bat`.
+- O ejecuta desde PowerShell, en la raíz del repositorio:
 
 ```powershell
 docker compose --project-directory Fase2 --env-file Fase2/.env -f Fase2/docker-compose.yml up -d mysql
 ```
+
+El archivo `.bat` verifica que Docker y `.env` estén disponibles. XtraBackup no queda levantado como servicio permanente: los scripts PowerShell lo ejecutan cuando solicitas un respaldo.
 
 Consulta su estado y, si no está listo, revisa los logs:
 
@@ -106,6 +111,8 @@ Ejecuta los comandos individualmente desde la raíz del repositorio:
 
 No ejecutes las tres líneas seguidas sin hacer las cargas entre ellas. El respaldo debe representar el estado posterior a la carga correspondiente.
 
+Al ejecutar por primera vez, Docker puede mostrar `Extracting` y `Pull complete`: eso indica que está descargando la imagen, todavía no que hizo el backup. El respaldo se confirma cuando XtraBackup termina sin error, el script muestra `Respaldo completo terminado`, aparece el directorio `full_*` con `.xtrabackup_checkpoints` y el manifiesto registra `OK`. Si aparece `ERROR` o el script termina con código distinto de cero, no cuentes esa ejecución como respaldo exitoso.
+
 ### Ensayo de estrategia diferencial
 
 Para comparar estrategias, conserva el full de referencia y, después de una carga elegida, ejecuta:
@@ -145,11 +152,16 @@ Guarda la captura o evidencia de fecha/hora, tamaño y resultado junto con la va
 
 ## 6. Apagar y volver a iniciar
 
-Apagar sin eliminar la base de datos ni el volumen:
+Apaga sin eliminar la base de datos ni el volumen de una de estas dos formas:
+
+- Doble clic en `Fase2/stop.bat`.
+- O ejecuta desde PowerShell, en la raíz del repositorio:
 
 ```powershell
 docker compose --project-directory Fase2 --env-file Fase2/.env -f Fase2/docker-compose.yml down
 ```
+
+El archivo `.bat` ejecuta `docker compose down` sin `-v`; por eso conserva los datos.
 
 Para continuar otro día, vuelve a ejecutar `up -d mysql` como en el paso 3. El volumen Docker conserva los datos.
 

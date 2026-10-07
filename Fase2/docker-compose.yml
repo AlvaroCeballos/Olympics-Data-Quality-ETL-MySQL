@@ -21,14 +21,15 @@ services:
     image: percona/percona-xtrabackup:8.0
     profiles: ["tools"]
     user: "0:0"
-    entrypoint: ["xtrabackup"]
+    entrypoint: ["/bin/sh", "/usr/local/bin/xtrabackup-entrypoint.sh"]
     depends_on:
       mysql:
         condition: service_healthy
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backup/archivos:/backups
-      - ./backup/xtrabackup.cnf:/etc/xtrabackup.cnf:ro
+      - ./backup/xtrabackup.cnf:/run/config/xtrabackup.cnf:ro
+      - ./backup/scripts/xtrabackup-entrypoint.sh:/usr/local/bin/xtrabackup-entrypoint.sh:ro
 
 volumes:
   mysql_data:

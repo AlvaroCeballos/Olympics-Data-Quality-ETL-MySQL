@@ -15,9 +15,9 @@ try {
 
     Write-Host "Iniciando respaldo completo: $backupName"
     Invoke-XtraBackup -XtraBackupArguments @(
-        '--defaults-extra-file=/etc/xtrabackup.cnf',
         '--backup',
-        '--target-dir=' + $containerTarget
+        '--target-dir',
+        $containerTarget
     ) -LogPath $logPath
 
     $sizeBytes = Get-BackupSizeBytes -Path $hostTarget

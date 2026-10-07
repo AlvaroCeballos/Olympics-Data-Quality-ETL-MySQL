@@ -6,11 +6,12 @@ Esta carpeta contiene la infraestructura aislada de Fase 2. No modifica Fase 1. 
 
 - `docker-compose.yml`: MySQL 8.0 con volumen persistente y XtraBackup 8.0.
 - `ddl/olimpiada2s.sql`: copia del DDL de Fase 1; se ejecuta solo al inicializar un volumen vacío.
-- `backup/scripts/`: scripts PowerShell para respaldos completos, incrementales y diferenciales.
+- `backup/scripts/`: scripts PowerShell para respaldos completos, incrementales y diferenciales, más el entrypoint Linux que prepara las credenciales de XtraBackup dentro del contenedor.
 - `backup/archivos/`: destino de los respaldos físicos; los archivos generados se excluyen de Git.
 - `logs/`: logs por ejecución y `backup_manifest.csv` con fecha, estrategia, base, tamaño y resultado.
 - `documentacion_tecnica.md` y `manual_usuario.md`: documentación correspondiente a infraestructura/respaldos.
 - `guia_ejecucion.md`: flujo de ejecución paso a paso en PowerShell.
+- `Start.bat` y `stop.bat`: accesos directos para iniciar y detener MySQL desde Windows.
 
 ## Inicio rápido (PowerShell, desde la raíz del repositorio)
 

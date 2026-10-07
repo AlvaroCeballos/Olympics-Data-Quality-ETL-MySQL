@@ -28,10 +28,11 @@ try {
 
     Write-Host "Iniciando incremental $backupName basado en $($baseBackup.Name)"
     Invoke-XtraBackup -XtraBackupArguments @(
-        '--defaults-extra-file=/etc/xtrabackup.cnf',
         '--backup',
-        '--target-dir=' + $containerTarget,
-        '--incremental-basedir=' + $containerBase
+        '--target-dir',
+        $containerTarget,
+        '--incremental-basedir',
+        $containerBase
     ) -LogPath $logPath
 
     $sizeBytes = Get-BackupSizeBytes -Path $hostTarget
