@@ -3,3 +3,4 @@ backup/xtrabackup.cnf
 backup/archivos/*
 !backup/archivos/.gitkeep
 logs/*.log
+backup/scripts/backup-incremental.ps1

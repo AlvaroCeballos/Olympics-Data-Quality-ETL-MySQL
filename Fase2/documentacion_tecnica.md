@@ -38,15 +38,16 @@ Get-PSDrive
 
 ## Plan de respaldo
 
-Tomar un punto recuperable después de cada carga acordada con Integrante 2. Para tres cargas, la cadena propuesta es:
+El procedimiento de Integrante 2 define tres ciclos independientes: deportista, deporte y año. Cada ciclo empieza en una instancia vacía y tiene cuatro estados de carga: `c0` (catálogos), seguida de las rondas `c1`, `c2` y `c3`. El plan de Integrante 1 para cada ciclo es:
 
-1. Después de la primera carga: un respaldo completo (`full_*`).
-2. Después de la segunda: un incremental (`inc_*`) basado en el último backup válido.
-3. Después de la tercera: otro incremental basado en el incremental anterior.
+1. Después de `00_catalogos.sql` (`c0`): un respaldo completo (`full_*`).
+2. Después de cada ronda (`c1`, `c2` y `c3`): un respaldo diferencial (`diff_*`) basado en el full de ese ciclo.
 
-El script diferencial también está disponible para la comparación: cada diferencial se basa en el último completo, no en el diferencial anterior. No mezclar cadenas al documentar la restauración. Un incremental exige el full y todos los incrementales previos de la cadena; para recuperar con un diferencial se usa el full y el diferencial más reciente que se quiera restaurar.
+En total son 12 respaldos requeridos: 3 completos y 9 diferenciales. Se reinicia el volumen de la base entre los tres ciclos siguiendo el procedimiento de Integrante 2; los backups de `/backups` están en una carpeta del anfitrión y no se eliminan con el volumen MySQL. El script diferencial usa el full más reciente, por lo que se debe crear un full nuevo después de cada reinicio antes de ejecutar diferenciales.
 
-XtraBackup registra LSN y checkpoints. El nombre de carpeta incluye fecha/hora `yyyyMMdd_HHmmss`; los logs individuales y `logs/backup_manifest.csv` guardan la fecha, estrategia, backup base, tamaño en bytes y resultado. Después de cada carga, el equipo debe conservar las capturas de conteos/validaciones correspondientes y anotar qué backup representa ese estado.
+El plan operativo de esta entrega utiliza solo respaldos completos y diferenciales. Para recuperar un estado, se usa el full del ciclo y el diferencial correspondiente a ese estado. El manifiesto conserva un registro histórico de una ejecución incremental de prueba anterior al cambio de estrategia; no forma parte de los respaldos requeridos.
+
+XtraBackup registra LSN y checkpoints. El nombre de carpeta incluye fecha/hora `yyyyMMdd_HHmmss`; los logs individuales y `logs/backup_manifest.csv` guardan la fecha, estrategia, backup base, tamaño en bytes y resultado. Después de cada estado de carga, conserva las capturas de conteos/validaciones correspondientes y anota qué backup representa ese estado.
 
 ## Credenciales y seguridad
 
@@ -56,4 +57,4 @@ Crear `Fase2/.env` a partir de `.env.example` y `Fase2/backup/xtrabackup.cnf` a 
 
 La restauración física se coordina con Integrante 3. El backup contiene el directorio de datos de la instancia MySQL, no un archivo SQL individual de `olimpiadas`. Para restaurar, detener MySQL, preparar/combinar la cadena en orden y copiar el backup preparado a un directorio de datos vacío usando una versión compatible de MySQL/XtraBackup. Integrante 3 debe registrar comandos, tiempos y validaciones en sus scripts y evidencias.
 
-Para una cadena incremental, XtraBackup prepara el full con `--apply-log-only`, aplica cada incremental en orden con `--incremental-dir` y finaliza la preparación del último paso sin `--apply-log-only`. Para diferencial se aplica solo el diferencial elegido al full. No ejecutar `--copy-back` sobre un directorio de datos activo ni borrar el volumen compartido sin coordinar la prueba.
+Para restaurar un diferencial, Integrante 3 debe preparar el full con `--apply-log-only`, aplicar el diferencial elegido con `--incremental-dir` y finalizar la preparación del full. No ejecutar `--copy-back` sobre un directorio de datos activo ni borrar el volumen compartido sin coordinar la prueba.

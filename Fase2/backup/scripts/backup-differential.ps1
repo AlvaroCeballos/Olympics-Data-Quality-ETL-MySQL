@@ -6,7 +6,7 @@ try {
     $baseBackup = Get-ChildItem -LiteralPath $script:BackupRoot -Directory |
         Where-Object {
             $_.Name -like 'full_*' -and
-            (Test-Path -LiteralPath (Join-Path $_.FullName '.xtrabackup_checkpoints'))
+            (Test-Path -LiteralPath (Join-Path $_.FullName 'xtrabackup_checkpoints'))
         } |
         Sort-Object -Property LastWriteTime -Descending |
         Select-Object -First 1

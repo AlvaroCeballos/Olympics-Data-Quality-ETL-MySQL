@@ -38,25 +38,25 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 Ejecutar desde la raíz del repositorio, después de la carga correspondiente:
 
 ```powershell
-# Respaldo completo: crear una nueva base de la cadena
+# Después de 00_catalogos.sql (c0), una vez por cada ciclo
 .\Fase2\backup\scripts\backup-full.ps1
 
-# Incremental: usa el full/incremental válido más reciente como base
-.\Fase2\backup\scripts\backup-incremental.ps1
-
-# Diferencial: siempre usa el respaldo full válido más reciente
+# Después de cada ronda c1, c2 y c3, en cada ciclo
 .\Fase2\backup\scripts\backup-differential.ps1
 ```
 
-Estrategia propuesta para tres cargas: ejecutar `backup-full.ps1` tras la primera, y `backup-incremental.ps1` tras cada carga siguiente. Para ensayar diferencial, partir de un full y ejecutar `backup-differential.ps1` tras la carga que se quiera comparar. No se deben ejecutar incremental y diferencial como si fueran una misma cadena.
+El flujo acordado con Integrante 2 tiene tres ciclos independientes: deportista, deporte y año. En cada ciclo se ejecuta primero `00_catalogos.sql` y después sus rondas `01`, `02` y `03`. Tras los catálogos (`c0`), ejecuta `backup-full.ps1`; después de cada ronda (`c1`, `c2`, `c3`), ejecuta `backup-differential.ps1`. Repite el ciclo en una instancia vacía según `Fase2/evidencias/PASOS.md`. En total se esperan 3 completos y 9 diferenciales.
+
+El flujo vigente usa solo completos y diferenciales. En el manifiesto puede aparecer un registro incremental histórico de una prueba anterior; no lo uses como parte de la cadena diferencial.
 
 ## Archivos generados y verificación
 
-- Backups físicos: `Fase2/backup/archivos/full_*`, `inc_*` o `diff_*`.
+- Backups del plan vigente: `Fase2/backup/archivos/full_*` y `diff_*`.
+- Se conserva una carpeta `inc_*` de una prueba histórica previa; no forma parte del plan vigente.
 - Log de cada ejecución: `Fase2/logs/backup_<nombre>.log`.
 - Registro acumulado de fecha, estrategia, base y tamaño: `Fase2/logs/backup_manifest.csv`.
 
-Verificar que cada ejecución finalice con código cero, que exista `.xtrabackup_checkpoints` dentro del directorio generado y que el manifiesto tenga una fila con resultado `OK`. Registrar también fecha/hora visible y el tamaño del respaldo para la evidencia solicitada.
+Verificar que cada ejecución finalice con código cero, que exista `xtrabackup_checkpoints` dentro del directorio generado y que el manifiesto tenga una fila con resultado `OK`. Registrar también fecha/hora visible y el tamaño del respaldo para la evidencia solicitada.
 
 ## Apagar sin perder datos
 

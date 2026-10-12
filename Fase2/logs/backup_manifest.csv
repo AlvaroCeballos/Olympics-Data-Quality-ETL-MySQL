@@ -1,0 +1,3 @@
+﻿"fecha_hora","estrategia","respaldo","basado_en","tamano_bytes","resultado"
+"2026-10-11T21:58:41-06:00","full","full_20261011_215655","","82083454","OK"
+"2026-10-11T22:09:19-06:00","incremental","inc_20261011_220910","full_20261011_215655","1835796","OK"
