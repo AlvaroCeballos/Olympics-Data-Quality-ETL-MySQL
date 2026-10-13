@@ -28,6 +28,7 @@ Crear los archivos privados a partir de sus plantillas:
 ```powershell
 Copy-Item Fase2/.env.example Fase2/.env
 Copy-Item Fase2/backup/xtrabackup.cnf.example Fase2/backup/xtrabackup.cnf
+.\Fase2\backup\scripts\generate-backup-encryption-key.ps1
 ```
 
 Editar ambos archivos:
@@ -37,7 +38,7 @@ notepad Fase2/.env
 notepad Fase2/backup/xtrabackup.cnf
 ```
 
-Configura la misma contraseña en ambos archivos. El archivo `.env` define la contraseña inicial de MySQL y el `.cnf` permite que XtraBackup se autentique. No subas los archivos reales al repositorio; están excluidos por `Fase2/.gitignore`.
+Configura la misma contraseña en ambos archivos. El archivo `.env` define la contraseña inicial de MySQL y el `.cnf` permite que XtraBackup se autentique. El tercer comando crea una clave AES-256 aleatoria; no la regeneres mientras existan respaldos cifrados. No subas `.env`, el CNF ni `backup-encryption.key` al repositorio. Guarda la clave de forma segura y entrégala a Integrante 3 por un canal privado separado de los backups.
 
 Si el puerto `3307` ya está ocupado, cambia `MYSQL_PORT` en `Fase2/.env`. Para una contraseña fácil de interpretar por Compose y el archivo CNF, usa un valor local sin espacios ni comillas.
 
@@ -130,7 +131,7 @@ El script diferencial toma como base el full más reciente. En cada ciclo, el fu
 
 ## 5. Revisar y registrar los respaldos
 
-Los scripts guardan los archivos en `Fase2/backup/archivos/`, con nombres que incluyen tipo y fecha/hora. Para listar carpetas de respaldo:
+Los scripts guardan respaldos físicos comprimidos con ZSTD y cifrados con AES-256 en `Fase2/backup/archivos/`, con nombres que incluyen tipo y fecha/hora. Los artefactos previos a este cambio permanecen sin comprimir/cifrar. Para listar carpetas de respaldo:
 
 ```powershell
 Get-ChildItem Fase2/backup/archivos -Directory | Sort-Object LastWriteTime
@@ -139,7 +140,7 @@ Get-ChildItem Fase2/backup/archivos -Directory | Sort-Object LastWriteTime
 Cada ejecución también produce:
 
 - Un log individual `Fase2/logs/backup_<nombre>.log`.
-- Una fila en `Fase2/logs/backup_manifest.csv` con fecha/hora, tipo, base usada, tamaño en bytes y resultado.
+- Una fila en `Fase2/logs/backup_manifest.csv` con fecha/hora, tipo, base usada, tamaño en bytes, compresión, cifrado y resultado. Las filas históricas reciben los valores `none (historico)` al migrarse el manifiesto.
 
 Consultar el manifiesto:
 
@@ -155,7 +156,13 @@ Get-ChildItem Fase2/backup/archivos -Force -Recurse -Filter xtrabackup_checkpoin
 
 Guarda la captura o evidencia de fecha/hora, tamaño y resultado junto con la validación de datos posterior a esa carga. No subas los archivos físicos de backup a Git.
 
-## 6. Apagar y volver a iniciar
+## 6. Programar respaldos automáticos con cron
+
+`Fase2/backup/backup.crontab.example` contiene una política de ejemplo para WSL/Linux con cron: full semanal domingo a las 02:00 y diferenciales de lunes a sábado a las 02:00. Cambia la variable `FASE2_ROOT` por la ruta absoluta del proyecto en WSL, instala el contenido con `crontab` y verifica que `pwsh`, Docker Compose y Docker Desktop estén disponibles desde esa distribución. Los procesos cron solo corren mientras WSL y Docker estén activos. La salida se agrega a `Fase2/logs/backup-cron.log`.
+
+No actives este calendario mientras se están tomando las evidencias c0-c3: genera respaldos adicionales y puede capturar estados no coordinados con Int2. Para esos 12 respaldos sigue el procedimiento manual inmediatamente después de cada carga. En Windows nativo, el Programador de tareas es la alternativa al cron.
+
+## 7. Apagar y volver a iniciar
 
 Apaga sin eliminar la base de datos ni el volumen de una de estas dos formas:
 
@@ -172,6 +179,6 @@ Para continuar otro día, vuelve a ejecutar `up -d mysql` como en el paso 3. El 
 
 > **Advertencia:** `docker compose down -v` elimina el volumen de MySQL. Úsalo solo para reiniciar el laboratorio desde cero, con autorización del equipo y después de conservar las evidencias necesarias. No lo uses durante las pruebas de restauración.
 
-## 7. Alcance de la restauración
+## 8. Alcance de la restauración
 
 Esta guía cubre infraestructura y toma de respaldos. La preparación, restauración física, cronometraje y validación corresponden a Integrante 3 y se deben ejecutar en un entorno controlado, no sobre la instancia que contiene la carga original.

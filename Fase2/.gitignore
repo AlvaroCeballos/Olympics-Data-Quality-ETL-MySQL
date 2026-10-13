@@ -1,5 +1,6 @@
 .env
 backup/xtrabackup.cnf
+backup/backup-encryption.key
 backup/archivos/*
 !backup/archivos/.gitkeep
 logs/*.log

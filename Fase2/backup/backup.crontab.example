@@ -1,0 +1,12 @@
+# Ejemplo para WSL/Linux con cron, PowerShell 7 (pwsh) y Docker Compose disponibles.
+# Cambia esta ruta por la ruta absoluta Linux de Fase2 (por ejemplo, /mnt/d/.../Fase2).
+FASE2_ROOT=/absolute/path/to/repository/Fase2
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Política de ejemplo: full semanal el domingo a las 02:00;
+# diferencial de lunes a sábado a las 02:00. El full más reciente es la base.
+# No habilitar durante los ciclos de evidencia c0-c3: estos jobs crean
+# respaldos adicionales que no corresponden a estados coordinados con Int2.
+0 2 * * 0 cd "$FASE2_ROOT/.." && /usr/bin/pwsh -NoProfile -File "$FASE2_ROOT/backup/scripts/backup-full.ps1" >> "$FASE2_ROOT/logs/backup-cron.log" 2>&1
+0 2 * * 1-6 cd "$FASE2_ROOT/.." && /usr/bin/pwsh -NoProfile -File "$FASE2_ROOT/backup/scripts/backup-differential.ps1" >> "$FASE2_ROOT/logs/backup-cron.log" 2>&1

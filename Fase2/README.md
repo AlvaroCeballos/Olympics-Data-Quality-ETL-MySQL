@@ -6,9 +6,10 @@ Esta carpeta contiene la infraestructura aislada de Fase 2. No modifica Fase 1. 
 
 - `docker-compose.yml`: MySQL 8.0 con volumen persistente y XtraBackup 8.0.
 - `ddl/olimpiada2s.sql`: copia del DDL de Fase 1; se ejecuta solo al inicializar un volumen vacío.
-- `backup/scripts/`: scripts PowerShell para respaldos completos y diferenciales, más el entrypoint Linux que prepara las credenciales de XtraBackup dentro del contenedor.
+- `backup/scripts/`: scripts PowerShell para respaldos completos y diferenciales comprimidos con ZSTD y cifrados con AES-256, generador local de clave y entrypoint Linux que protege credenciales/clave dentro del contenedor.
+- `backup/backup.crontab.example`: calendario cron de referencia para WSL/Linux; es opcional y no debe habilitarse durante los ciclos de evidencia c0-c3.
 - `backup/archivos/`: destino de los respaldos físicos; los archivos generados se excluyen de Git.
-- `logs/`: logs por ejecución y `backup_manifest.csv` con fecha, estrategia, base, tamaño y resultado.
+- `logs/`: logs por ejecución y `backup_manifest.csv` con fecha, estrategia, base, tamaño, compresión, cifrado y resultado.
 - `documentacion_tecnica.md` y `manual_usuario.md`: documentación correspondiente a infraestructura/respaldos.
 - `guia_ejecucion.md`: flujo de ejecución paso a paso en PowerShell.
 - `Start.bat` y `stop.bat`: accesos directos para iniciar y detener MySQL desde Windows.
@@ -23,7 +24,7 @@ Esta carpeta contiene la infraestructura aislada de Fase 2. No modifica Fase 1. 
    Copy-Item Fase2/backup/xtrabackup.cnf.example Fase2/backup/xtrabackup.cnf
    ```
 
-3. Cambia la contraseña en ambos archivos locales por el mismo valor. No agregues esos archivos a Git.
+4. Cambia la contraseña en ambos archivos locales por el mismo valor. Genera la clave con `Fase2/backup/scripts/generate-backup-encryption-key.ps1`. No agregues los archivos locales ni la clave a Git; entrega la clave a Int3 por un canal privado para poder restaurar.
 4. Inicia la instancia:
 
    ```powershell

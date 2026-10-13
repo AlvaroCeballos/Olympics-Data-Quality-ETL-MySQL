@@ -14,9 +14,10 @@ Ejecutar desde la raíz del repositorio:
 ```powershell
 Copy-Item Fase2/.env.example Fase2/.env
 Copy-Item Fase2/backup/xtrabackup.cnf.example Fase2/backup/xtrabackup.cnf
+.\Fase2\backup\scripts\generate-backup-encryption-key.ps1
 ```
 
-Editar ambos archivos y asignar **la misma contraseña local**. No compartir ni versionar los archivos reales. En `Fase2/.env` se puede cambiar `MYSQL_PORT` si el puerto 3307 ya está ocupado; conservar el puerto de contenedor 3306.
+Editar `.env` y `xtrabackup.cnf` y asignar **la misma contraseña local**. El tercer comando genera la clave AES-256 si aún no existe. No compartir ni versionar los archivos reales. Entrega una copia de la clave a Int3 por un canal privado para que pueda descifrar; no la pierdas ni la regeneres mientras haya respaldos que dependan de ella. En `Fase2/.env` se puede cambiar `MYSQL_PORT` si el puerto 3307 ya está ocupado; conservar el puerto de contenedor 3306.
 
 Iniciar la instancia de Fase 2:
 
@@ -47,16 +48,25 @@ Ejecutar desde la raíz del repositorio, después de la carga correspondiente:
 
 El flujo acordado con Integrante 2 tiene tres ciclos independientes: deportista, deporte y año. En cada ciclo se ejecuta primero `00_catalogos.sql` y después sus rondas `01`, `02` y `03`. Tras los catálogos (`c0`), ejecuta `backup-full.ps1`; después de cada ronda (`c1`, `c2`, `c3`), ejecuta `backup-differential.ps1`. Repite el ciclo en una instancia vacía según `Fase2/evidencias/PASOS.md`. En total se esperan 3 completos y 9 diferenciales.
 
-El flujo vigente usa solo completos y diferenciales. En el manifiesto puede aparecer un registro incremental histórico de una prueba anterior; no lo uses como parte de la cadena diferencial.
+El flujo vigente usa solo completos y diferenciales. Los respaldos nuevos se comprimen con ZSTD y se cifran con AES-256. El manifiesto indica ambas protecciones; las filas antiguas se conservan marcadas `none (historico)`. En el manifiesto puede aparecer un registro incremental histórico de una prueba anterior; no lo uses como parte de la cadena diferencial.
 
 ## Archivos generados y verificación
 
 - Backups del plan vigente: `Fase2/backup/archivos/full_*` y `diff_*`.
 - Se conserva una carpeta `inc_*` de una prueba histórica previa; no forma parte del plan vigente.
 - Log de cada ejecución: `Fase2/logs/backup_<nombre>.log`.
-- Registro acumulado de fecha, estrategia, base y tamaño: `Fase2/logs/backup_manifest.csv`.
+- Registro acumulado de fecha, estrategia, base, tamaño, compresión, cifrado y resultado: `Fase2/logs/backup_manifest.csv`.
+- Log de tareas cron, si se habilitan: `Fase2/logs/backup-cron.log`.
 
 Verificar que cada ejecución finalice con código cero, que exista `xtrabackup_checkpoints` dentro del directorio generado y que el manifiesto tenga una fila con resultado `OK`. Registrar también fecha/hora visible y el tamaño del respaldo para la evidencia solicitada.
+
+## Programación automática con cron en WSL/Linux
+
+La plantilla `Fase2/backup/backup.crontab.example` programa, como ejemplo, un full cada domingo a las 02:00 y diferenciales de lunes a sábado a las 02:00. Reemplaza `FASE2_ROOT` por la ruta absoluta de `Fase2` en WSL y asegúrate de que WSL tenga `cron`, PowerShell 7 (`pwsh`) y acceso a Docker Desktop/Docker Compose. Instala el contenido con `crontab` y mantén la distribución WSL y Docker Desktop activos para que se ejecuten los trabajos.
+
+**No habilites ese calendario durante los ciclos de evidencia c0-c3**: los horarios fijos no coinciden necesariamente con las cargas de Int2 y crearían respaldos adicionales. Para los 12 estados requeridos, sigue ejecutando manualmente el full/diferencial después de cada carga. En Windows nativo, usa el Programador de tareas si necesitas un servicio de programación sin WSL.
+
+Los respaldos creados antes de activar compresión/cifrado no se convierten automáticamente; sus archivos permanecen sin comprimir y sin cifrar.
 
 ## Apagar sin perder datos
 

@@ -26,9 +26,18 @@ try {
         throw "Ya existe el directorio de respaldo: $hostTarget"
     }
 
-    Write-Host "Iniciando diferencial $backupName basado en el full $($baseBackup.Name)"
+    Write-Host "Iniciando diferencial comprimido con ZSTD y cifrado con AES-256: $backupName (base: $($baseBackup.Name))"
+    @(
+        'Proteccion: compresion ZSTD; cifrado AES256.'
+        'La clave no se registra en este log.'
+    ) | Set-Content -LiteralPath $logPath -Encoding UTF8
     Invoke-XtraBackup -XtraBackupArguments @(
         '--backup',
+        '--compress',
+        '--compress-threads=2',
+        '--compress-zstd-level=3',
+        '--encrypt=AES256',
+        '--encrypt-key-file=/tmp/backup-encryption.key',
         '--target-dir',
         $containerTarget,
         '--incremental-basedir',

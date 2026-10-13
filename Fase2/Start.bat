@@ -35,6 +35,10 @@ if not exist "backup\xtrabackup.cnf" (
     echo AVISO: MySQL esta iniciado, pero falta backup\xtrabackup.cnf para ejecutar respaldos.
     echo Copie y configure backup\xtrabackup.cnf.example antes del primer backup.
 )
+if not exist "backup\backup-encryption.key" (
+    echo AVISO: falta la clave AES-256 para respaldos cifrados.
+    echo Ejecute scripts\generate-backup-encryption-key.ps1 desde la raiz del repositorio.
+)
 echo.
 echo Fase 2 esta iniciada. MySQL se conecta en 127.0.0.1:3307.
 echo El volumen persistente se conserva al detener con stop.bat.

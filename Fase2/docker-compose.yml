@@ -29,6 +29,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./backup/archivos:/backups
       - ./backup/xtrabackup.cnf:/run/config/xtrabackup.cnf:ro
+      - ./backup/backup-encryption.key:/run/config/backup-encryption.key:ro
       - ./backup/scripts/xtrabackup-entrypoint.sh:/usr/local/bin/xtrabackup-entrypoint.sh:ro
 
 volumes:
