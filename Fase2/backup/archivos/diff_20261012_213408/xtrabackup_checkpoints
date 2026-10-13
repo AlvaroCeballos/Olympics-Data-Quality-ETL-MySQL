@@ -1,0 +1,7 @@
+backup_type = incremental
+from_lsn = 36930772
+to_lsn = 37110208
+last_lsn = 37110208
+flushed_lsn = 37110208
+redo_memory = 0
+redo_frames = 0

@@ -1,0 +1,18 @@
+uuid = c69f1b67-c6b6-11f1-9935-f624802ed2e7
+name = 
+tool_name = xtrabackup
+tool_command = --defaults-extra-file=/tmp/xtrabackup.cnf --backup --target-dir /backups/diff_20261012_213250 --incremental-basedir /backups/full_20261012_213152
+tool_version = 8.0.35-36
+ibbackup_version = 8.0.35-36
+server_version = 8.0.46
+start_time = 2026-10-13 03:32:52
+end_time = 2026-10-13 03:32:54
+lock_time = 1
+binlog_pos = filename 'binlog.000004', position '157'
+innodb_from_lsn = 36930772
+innodb_to_lsn = 37018253
+partial = N
+incremental = Y
+format = file
+compressed = N
+encrypted = N
