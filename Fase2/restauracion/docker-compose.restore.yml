@@ -1,0 +1,22 @@
+services:
+  mysql_restore:
+    image: mysql:8.0
+    container_name: fase2_mysql_restore
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Create Fase2/.env from .env.example}
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - restore_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    restart: "no"
+
+volumes:
+  restore_mysql_data:
+    name: fase2_restore_mysql_data
