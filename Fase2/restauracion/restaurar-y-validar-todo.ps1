@@ -36,7 +36,7 @@ Write-Host "============================================================" -Foreg
 foreach ($c in $ciclosAEjecutar) {
     Write-Host ""
     Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Magenta
-    Write-Host " PROCESANDO CICLO: $c.ToUpper()" -ForegroundColor Magenta
+    Write-Host " PROCESANDO CICLO: $($c.ToUpper())" -ForegroundColor Magenta
     Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Magenta
 
     # Paso 1: C0 - Full (Catalogos)
