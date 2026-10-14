@@ -1,5 +1,9 @@
 # Manual de usuario — respaldos (Integrante 1)
 
+**Autor:** Ottoniel Fabricio Vásquez Pineda — 202307820 (Integrante 1)  
+**Curso:** Sistemas de Bases de Datos 2, USAC  
+**Grupo:** 18  
+
 ## Requisitos
 
 - Windows con Docker Desktop instalado y el motor iniciado.

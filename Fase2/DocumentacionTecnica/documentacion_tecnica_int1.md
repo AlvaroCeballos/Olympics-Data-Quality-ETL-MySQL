@@ -1,5 +1,9 @@
 # Documentación técnica — infraestructura y respaldos (Integrante 1)
 
+**Autor:** Ottoniel Fabricio Vásquez Pineda — 202307820 (Integrante 1)  
+**Curso:** Sistemas de Bases de Datos 2, USAC  
+**Grupo:** 18  
+
 ## Alcance
 
 La infraestructura de Fase 2 vive en esta carpeta y mantiene intacta Fase 1. Se copia el esquema desde `Fase1/olimpiada2s.sql` a `Fase2/ddl/olimpiada2s.sql` para que la instancia de respaldo sea reproducible sin depender de ejecutar scripts desde otra carpeta. Las cargas de Fase 2 se deben conectar a la instancia Docker de esta fase.
@@ -21,12 +25,12 @@ El servidor de base de datos es el contenedor MySQL ejecutado por Docker Desktop
 
 | Recurso | Valor medido |
 |---|---|
-| Sistema operativo anfitrión | Windows (registrar edición y versión) |
-| CPU asignada al motor Docker | Registrar salida de `docker info` |
-| Memoria asignada al motor Docker | Registrar salida de `docker info` |
-| Almacenamiento disponible para `Fase2/backup/archivos` | Registrar unidad y espacio libre |
-| Imagen/versión MySQL resuelta | Registrar salida de `docker compose images` |
-| Imagen/versión XtraBackup resuelta | Registrar salida de `docker compose images` |
+| Sistema operativo anfitrión | Microsoft Windows 11 Pro (NT Kernel 10.0.26200) |
+| CPU asignada al motor Docker | 12 vCPUs (`docker info`) |
+| Memoria asignada al motor Docker | 7.44 GB / 7,987,216,384 bytes (`docker info`) |
+| Almacenamiento disponible para `Fase2/backup/archivos` | Unidad `D:` con 158.03 GB libres |
+| Imagen/versión MySQL resuelta | `mysql:8.0` (Image ID: `7dcddc01f13b`, 1.10 GB) |
+| Imagen/versión XtraBackup resuelta | `percona/percona-xtrabackup:8.0` (Image ID: `368c3429c4cc`, 2.02 GB) |
 
 Comandos de referencia en PowerShell:
 

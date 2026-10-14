@@ -1,5 +1,9 @@
 # Documentación técnica — Datos y validación (Integrante 2)
 
+**Autora:** Yulianne Nicole López Elias — 202300659 (Integrante 2)  
+**Curso:** Sistemas de Bases de Datos 2, USAC  
+**Grupo:** 18  
+
 > Secciones a cargo del Integrante 2: modelo E-R, metodología de carga y fragmentación.
 > Se integran al PDF de documentación técnica que consolida el Integrante 3.
 

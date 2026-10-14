@@ -1,5 +1,9 @@
 # Manual de usuario — Carga y validación (Integrante 2)
 
+**Autora:** Yulianne Nicole López Elias — 202300659 (Integrante 2)  
+**Curso:** Sistemas de Bases de Datos 2, USAC  
+**Grupo:** 18  
+
 > Sección a cargo del Integrante 2. Explica cómo cargar los datos en la instancia de
 > Fase 2 y cómo validar cada carga. Se integra al manual de usuario del grupo.
 
