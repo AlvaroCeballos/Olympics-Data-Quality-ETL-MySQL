@@ -36,18 +36,18 @@ $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
 $reportLines = [System.Collections.Generic.List[string]]::new()
 
 function Write-Both {
-    param([string]$Text, [ConsoleColor]$Color = [ConsoleColor]::White)
+    param([string]$Text, [string]$Color = 'White')
     Write-Host $Text -ForegroundColor $Color
     $reportLines.Add($Text)
 }
 
-Write-Both "============================================================" [ConsoleColor]::Cyan
-Write-Both " AUDITORIA DE VALIDACION Y ALERTAS DE INTEGRIDAD" [ConsoleColor]::Cyan
-Write-Both " Fecha y Hora:  $timestamp" [ConsoleColor]::Cyan
-Write-Both " Ciclo evaluado: $Ciclo" [ConsoleColor]::Cyan
-Write-Both " Carga/Ronda:    $Carga" [ConsoleColor]::Cyan
-Write-Both " Base objetivo:  olimpiadas (MySQL 8.0 / Puerto 3307)" [ConsoleColor]::Cyan
-Write-Both "============================================================" [ConsoleColor]::Cyan
+Write-Both "============================================================" 'Cyan'
+Write-Both " AUDITORIA DE VALIDACION Y ALERTAS DE INTEGRIDAD" 'Cyan'
+Write-Both " Fecha y Hora:  $timestamp" 'Cyan'
+Write-Both " Ciclo evaluado: $Ciclo" 'Cyan'
+Write-Both " Carga/Ronda:    $Carga" 'Cyan'
+Write-Both " Base objetivo:  olimpiadas (MySQL 8.0 / Puerto 3307)" 'Cyan'
+Write-Both "============================================================" 'Cyan'
 
 $totalAlerts = 0
 $totalWarnings = 0
@@ -56,7 +56,7 @@ $totalWarnings = 0
 # 1. CENSO DE CONTEOS (COUNT(*) en 12 tablas)
 # ------------------------------------------------------------
 Write-Both ""
-Write-Both "--- [1/4] CENSO DE CONTEOS VS DATOS ESPERADOS ---" [ConsoleColor]::Yellow
+Write-Both "--- [1/4] CENSO DE CONTEOS VS DATOS ESPERADOS ---" 'Yellow'
 
 # Construir diccionario de valores esperados para este ciclo y carga
 $expectedCounts = @{}
@@ -94,8 +94,8 @@ try {
         }
     }
 
-    Write-Both ("{0,-16} | {1,10} | {2,10} | {3,-12}" -f "TABLA", "ESPERADO", "ACTUAL", "ESTADO") [ConsoleColor]::White
-    Write-Both ("-" * 56) [ConsoleColor]::Gray
+    Write-Both ("{0,-16} | {1,10} | {2,10} | {3,-12}" -f "TABLA", "ESPERADO", "ACTUAL", "ESTADO") 'White'
+    Write-Both ("-" * 56) 'Gray'
 
     $tableOrder = @('pais', 'noc', 'sede', 'olimpiada', 'atleta', 'deporte', 'disciplina', 'evento', 'equipo', 'medalla', 'participacion', 'poblacion_pais')
     foreach ($tbl in $tableOrder) {
@@ -103,23 +103,23 @@ try {
         $act = if ($actualCounts.ContainsKey($tbl)) { $actualCounts[$tbl] } else { -1 }
 
         if ($act -eq $exp) {
-            Write-Both ("{0,-16} | {1,10} | {2,10} | {3,-12}" -f $tbl, $exp, $act, "[OK COINCIDE]") [ConsoleColor]::Green
+            Write-Both ("{0,-16} | {1,10} | {2,10} | {3,-12}" -f $tbl, $exp, $act, "[OK COINCIDE]") 'Green'
         } else {
             $totalAlerts++
-            Write-Both ("{0,-16} | {1,10} | {2,10} | {3,-12}" -f $tbl, $exp, $act, "[ALERTA DISCREPANCIA]") [ConsoleColor]::Red
+            Write-Both ("{0,-16} | {1,10} | {2,10} | {3,-12}" -f $tbl, $exp, $act, "[ALERTA DISCREPANCIA]") 'Red'
         }
     }
 }
 catch {
     $totalAlerts++
-    Write-Both " [ALERTA CRITICA] Error al consultar censo en MySQL: $_" [ConsoleColor]::Red
+    Write-Both " [ALERTA CRITICA] Error al consultar censo en MySQL: $_" 'Red'
 }
 
 # ------------------------------------------------------------
 # 2. INTEGRIDAD REFERENCIAL (Claves foraneas huerfanas)
 # ------------------------------------------------------------
 Write-Both ""
-Write-Both "--- [2/4] AUDITORIA DE INTEGRIDAD REFERENCIAL (HUERFANOS) ---" [ConsoleColor]::Yellow
+Write-Both "--- [2/4] AUDITORIA DE INTEGRIDAD REFERENCIAL (HUERFANOS) ---" 'Yellow'
 
 $fkChecks = @(
     @{
@@ -157,15 +157,15 @@ foreach ($check in $fkChecks) {
         $res = Invoke-RestoreSQL -Query $check.Query
         $orphanCount = [long]($res | Select-Object -Last 1).Trim()
         if ($orphanCount -eq 0) {
-            Write-Both ("  [OK INTEGRIDAD] {0,-32} : 0 huerfanos detectados" -f $check.Relacion) [ConsoleColor]::Green
+            Write-Both ("  [OK INTEGRIDAD] {0,-32} : 0 huerfanos detectados" -f $check.Relacion) 'Green'
         } else {
             $totalAlerts++
-            Write-Both ("  [ALERTA DE INTEGRIDAD] {0,-32} : {1} REGISTROS HUERFANOS DETECTADOS!" -f $check.Relacion, $orphanCount) [ConsoleColor]::Red
+            Write-Both ("  [ALERTA DE INTEGRIDAD] {0,-32} : {1} REGISTROS HUERFANOS DETECTADOS!" -f $check.Relacion, $orphanCount) 'Red'
         }
     }
     catch {
         $totalAlerts++
-        Write-Both ("  [ALERTA DE ERROR] Fallo al verificar {0}: $_" -f $check.Relacion) [ConsoleColor]::Red
+        Write-Both ("  [ALERTA DE ERROR] Fallo al verificar {0}: $_" -f $check.Relacion) 'Red'
     }
 }
 
@@ -173,7 +173,7 @@ foreach ($check in $fkChecks) {
 # 3. INTEGRIDAD FISICA DE TABLAS (CHECK TABLE)
 # ------------------------------------------------------------
 Write-Both ""
-Write-Both "--- [3/4] INTEGRIDAD FISICA DE TABLAS (CHECK TABLE) ---" [ConsoleColor]::Yellow
+Write-Both "--- [3/4] INTEGRIDAD FISICA DE TABLAS (CHECK TABLE) ---" 'Yellow'
 
 $queryCheck = "CHECK TABLE pais, noc, sede, olimpiada, atleta, deporte, disciplina, evento, equipo, medalla, participacion, poblacion_pais;"
 try {
@@ -187,25 +187,25 @@ try {
             $mType = $cols[2]
             $mText = $cols[3]
             if ($mType -eq 'status' -and $mText -eq 'OK') {
-                Write-Both ("  [OK FISICO] {0,-16} : Estado {1}" -f $tName, $mText) [ConsoleColor]::Green
+                Write-Both ("  [OK FISICO] {0,-16} : Estado {1}" -f $tName, $mText) 'Green'
             } else {
                 $totalAlerts++
                 $allTablesPhysicalOk = $false
-                Write-Both ("  [ALERTA FISICA] {0,-16} : {1} - {2}" -f $tName, $mType, $mText) [ConsoleColor]::Red
+                Write-Both ("  [ALERTA FISICA] {0,-16} : {1} - {2}" -f $tName, $mType, $mText) 'Red'
             }
         }
     }
 }
 catch {
     $totalAlerts++
-    Write-Both " [ALERTA] Error al ejecutar CHECK TABLE: $_" [ConsoleColor]::Red
+    Write-Both " [ALERTA] Error al ejecutar CHECK TABLE: $_" 'Red'
 }
 
 # ------------------------------------------------------------
 # 4. METRICAS DE FRAGMENTACION (InnoDB TABLES)
 # ------------------------------------------------------------
 Write-Both ""
-Write-Both "--- [4/4] METRICAS DE FRAGMENTACION (information_schema) ---" [ConsoleColor]::Yellow
+Write-Both "--- [4/4] METRICAS DE FRAGMENTACION (information_schema) ---" 'Yellow'
 
 $queryFrag = @"
 SELECT
@@ -226,36 +226,36 @@ try {
     # Refrescar estadisticas de InnoDB
     $null = Invoke-RestoreSQL -Query "ANALYZE TABLE pais, noc, sede, olimpiada, atleta, deporte, disciplina, evento, equipo, medalla, participacion, poblacion_pais;" 2>$null
     $fragRaw = Invoke-RestoreSQL -Query $queryFrag
-    Write-Both ("{0,-16} | {1,8} | {2,10} | {3,10} | {4,12} | {5,10}" -f "TABLA", "FILAS", "DATOS_KB", "INDICE_KB", "LIBRE_KB", "%_FRAG") [ConsoleColor]::White
-    Write-Both ("-" * 78) [ConsoleColor]::Gray
+    Write-Both ("{0,-16} | {1,8} | {2,10} | {3,10} | {4,12} | {5,10}" -f "TABLA", "FILAS", "DATOS_KB", "INDICE_KB", "LIBRE_KB", "%_FRAG") 'White'
+    Write-Both ("-" * 78) 'Gray'
     foreach ($line in $fragRaw) {
         if ($line -match 'tabla\s+filas') { continue }
         $cols = $line -split '\t'
         if ($cols.Count -ge 6) {
-            Write-Both ("{0,-16} | {1,8} | {2,10} | {3,10} | {4,12} | {5,10}%" -f $cols[0], $cols[1], $cols[2], $cols[3], $cols[4], $cols[5]) [ConsoleColor]::Cyan
+            Write-Both ("{0,-16} | {1,8} | {2,10} | {3,10} | {4,12} | {5,10}%" -f $cols[0], $cols[1], $cols[2], $cols[3], $cols[4], $cols[5]) 'Cyan'
         }
     }
 }
 catch {
-    Write-Both "  [AVISO] No se pudo obtener la fragmentacion: $_" [ConsoleColor]::Yellow
+    Write-Both "  [AVISO] No se pudo obtener la fragmentacion: $_" 'Yellow'
 }
 
 # ------------------------------------------------------------
 # 5. RESUMEN Y ALERTA FINAL
 # ------------------------------------------------------------
 Write-Both ""
-Write-Both "============================================================" [ConsoleColor]::White
+Write-Both "============================================================" 'White'
 if ($totalAlerts -eq 0) {
-    Write-Both " [VEREDICTO GLOBAL]: RESTAURACION 100% VALIDA E INTEGRA" [ConsoleColor]::Green
-    Write-Both "  -> Conteos: Coinciden exactamente con la carga esperada." [ConsoleColor]::Green
-    Write-Both "  -> Integridad Referencial: Cero registros huerfanos detectados." [ConsoleColor]::Green
-    Write-Both "  -> Integridad Fisica: Tablas InnoDB consistentes y saludables." [ConsoleColor]::Green
-    Write-Both "  -> Alertas detectadas: 0" [ConsoleColor]::Green
+    Write-Both " [VEREDICTO GLOBAL]: RESTAURACION 100% VALIDA E INTEGRA" 'Green'
+    Write-Both "  -> Conteos: Coinciden exactamente con la carga esperada." 'Green'
+    Write-Both "  -> Integridad Referencial: Cero registros huerfanos detectados." 'Green'
+    Write-Both "  -> Integridad Fisica: Tablas InnoDB consistentes y saludables." 'Green'
+    Write-Both "  -> Alertas detectadas: 0" 'Green'
 } else {
-    Write-Both " [ALERTA CRITICA]: SE DETECTARON $totalAlerts DISCREPANCIAS O FALLAS" [ConsoleColor]::Red
-    Write-Both "  -> Revise los bloques marcados con [ALERTA] para depuracion." [ConsoleColor]::Red
+    Write-Both " [ALERTA CRITICA]: SE DETECTARON $totalAlerts DISCREPANCIAS O FALLAS" 'Red'
+    Write-Both "  -> Revise los bloques marcados con [ALERTA] para depuracion." 'Red'
 }
-Write-Both "============================================================" [ConsoleColor]::White
+Write-Both "============================================================" 'White'
 
 if ($SaveReport) {
     $reportFileName = "validacion_${Ciclo}_${Carga}_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"

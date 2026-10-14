@@ -32,11 +32,11 @@ $script:AlpineImage        = 'alpine:3.19'
 # ---- Mapeo de Respaldos Definitivos (3 Ciclos × 1 Full + 3 Diferenciales) ----
 $script:DefinitiveSets = @{
     'deportista' = @{
-        'full' = 'full_20261012_210023'
-        'c0'   = 'full_20261012_210023'
-        'c1'   = 'diff_20261012_210255'
-        'c2'   = 'diff_20261012_210352'
-        'c3'   = 'diff_20261012_210508'
+        'full' = 'full_20261012_211829'
+        'c0'   = 'full_20261012_211829'
+        'c1'   = 'diff_20261012_212322'
+        'c2'   = 'diff_20261012_212404'
+        'c3'   = 'diff_20261012_212457'
     }
     'deporte' = @{
         'full' = 'full_20261012_213152'
@@ -150,6 +150,14 @@ function New-WorkingCopy {
         Write-Host "  Copiando $name hacia area de trabajo segura..." -ForegroundColor Cyan
         Copy-Item -LiteralPath $src -Destination $dst -Recurse
     }
+
+    # Normalizar finales de linea en archivos .index (eliminar \r introducido por Git en Windows)
+    Get-ChildItem -LiteralPath $script:WorkDir -Recurse -Filter '*.index' | ForEach-Object {
+        $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
+        $newBytes = $bytes | Where-Object { $_ -ne 13 }
+        [System.IO.File]::WriteAllBytes($_.FullName, [byte[]]$newBytes)
+    }
+
     Write-Host "  Copia de trabajo lista en _restore_work." -ForegroundColor Green
 }
 
@@ -195,10 +203,10 @@ function Clear-RestoreVolume {
     $prev = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        & docker run --rm `
+        & docker run --rm --user 0:0 `
             -v "$($script:RestoreVolumeName):/data" `
             $script:AlpineImage `
-            sh -c 'rm -rf /data/*'
+            sh -c 'rm -rf /data/* && chmod 777 /data'
         $exitCode = $LASTEXITCODE
     }
     finally { $ErrorActionPreference = $prev }
@@ -223,12 +231,14 @@ function Invoke-XBRestore {
         $volumes += @('-v', "$($script:RestoreVolumeName):/var/lib/mysql")
     }
 
-    $dockerArgs = @('run', '--rm') + $volumes + @($script:XBImage, 'xtrabackup') + $XBArgs
+    $dockerArgs = @('run', '--rm', '--user', '0:0') + $volumes + @($script:XBImage, 'xtrabackup') + $XBArgs
 
     $prev = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        & docker @dockerArgs 2>&1 | Tee-Object -FilePath $LogPath -Append
+        $quotedArgs = $dockerArgs | ForEach-Object { if ($_ -match '\s') { "`"$_`"" } else { $_ } }
+        $fullCmd = "docker " + ($quotedArgs -join " ")
+        cmd.exe /c "$fullCmd 2>&1" | Tee-Object -FilePath $LogPath -Append
         $exitCode = $LASTEXITCODE
     }
     finally { $ErrorActionPreference = $prev }
@@ -246,7 +256,7 @@ function Set-RestoreOwnership {
     $prev = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        & docker run --rm `
+        & docker run --rm --user 0:0 `
             -v "$($script:RestoreVolumeName):/var/lib/mysql" `
             $script:AlpineImage `
             chown -R 999:999 /var/lib/mysql

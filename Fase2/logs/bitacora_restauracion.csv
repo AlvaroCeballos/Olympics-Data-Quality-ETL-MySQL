@@ -1,0 +1,7 @@
+﻿"fecha_hora","ciclo","carga","estrategia","backup_full","backup_diff","duracion_segundos","resultado"
+"2026-10-13T17:16:17-06:00","deportista","c0","full","full_20261012_210023","","84.05","ERROR: XtraBackup termino con codigo 1. Revisa el log: D:\Proyectos U\Bases 2\Proyecto 1\SBD2B_PROYECT1_2S2026_G18\Fase2\logs\restore_full_20261012_210023.log"
+"2026-10-13T17:23:43-06:00","deportista","c0","full","full_20261012_210023","","9.89","ERROR: XtraBackup termino con codigo 1. Revisa el log: D:\Proyectos U\Bases 2\Proyecto 1\SBD2B_PROYECT1_2S2026_G18\Fase2\logs\restore_full_20261012_210023.log"
+"2026-10-13T17:25:20-06:00","deportista","c0","full","full_20261012_210023","","23.08","OK"
+"2026-10-13T17:30:50-06:00","deportista","c0","full","full_20261012_211829","","21.2","OK"
+"2026-10-13T17:32:35-06:00","deportista","c1","differential","full_20261012_211829","diff_20261012_212322","38.62","OK"
+"2026-10-13T17:43:11-06:00","deportista","c0","full","full_20261012_211829","","19.66","OK"

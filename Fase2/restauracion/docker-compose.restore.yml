@@ -5,10 +5,15 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Create Fase2/.env from .env.example}
       MYSQL_ROOT_HOST: "%"
+    command:
+      - mysqld
+      - --init-file=/etc/mysql/init.sql
+      - --default-authentication-plugin=mysql_native_password
     ports:
       - "127.0.0.1:${MYSQL_PORT:-3307}:3306"
     volumes:
       - restore_mysql_data:/var/lib/mysql
+      - ./restauracion/init-restore.sql:/etc/mysql/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
       interval: 3s
