@@ -56,7 +56,7 @@ Para arrancar o detener el contenedor principal de MySQL:
   docker compose --project-directory Fase2 --env-file Fase2/.env -f Fase2/docker-compose.yml down -v
   ```
 
-![imagen1](imagenes/I1.png)
+![imagen1](Imagenes/I1.png)
 
 ---
 
@@ -74,7 +74,7 @@ Para conectarse desde MySQL Workbench o cualquier cliente SQL:
 
 > El contenedor ejecuta automáticamente el script DDL (`Fase2/ddl/olimpiada2s.sql`) la primera vez que se inicia con un volumen vacío.
 
-![imagen2](imagenes/I2.png)
+![imagen2](Imagenes/I2.png)
 
 ---
 
@@ -100,7 +100,7 @@ El proyecto define **tres ciclos independientes** de carga: `deportista`, `depor
 
 *Donde `<ciclo>` corresponde a `deportista`, `deporte` o `anio`.*
 
-![imagen3](imagenes/I3.png)
+![imagen3](Imagenes/I3.png)
 
 > **Advertencia:** No ejecute un mismo script de carga dos veces consecutivas, ya que producirá un error `Error Code: 1062. Duplicate entry`.
 
@@ -123,9 +123,9 @@ Inmediatamente después de cada carga, se debe auditar la base de datos en Workb
 3. **Toma de Captura:**
    Presionar `Win + Impr Pant` asegurando que la grilla de resultados y el **reloj de la barra de tareas de Windows** sean perfectamente visibles. Guardar en `Fase2/evidencias/<ciclo>/`.
 
-![imagen4](imagenes/I4.png)
+![imagen4](Imagenes/I4.png)
 
-![imagen5](imagenes/I45.png)
+![imagen5](Imagenes/I45.png)
 
 ---
 
@@ -141,7 +141,7 @@ Se ejecuta obligatoriamente **tras la carga de catálogos (C0)**:
 - Genera un directorio con nombre `full_yyyyMMdd_HHmmss` en `Fase2/backup/archivos/`.
 - Registra el tamaño, fecha y resultado `OK` en `Fase2/logs/backup_manifest.csv`.
 
-![imagen6](imagenes/I5.png)
+![imagen6](Imagenes/I5.png)
 
 ### 5.2 Respaldo Diferencial (Differential Backup)
 Se ejecuta inmediatamente **después de cada ronda de hechos (C1, C2, C3)**:
@@ -152,8 +152,8 @@ Se ejecuta inmediatamente **después de cada ronda de hechos (C1, C2, C3)**:
 - Genera un directorio `diff_yyyyMMdd_HHmmss` en `Fase2/backup/archivos/`.
 - Actualiza `Fase2/logs/backup_manifest.csv` asociando el campo `basado_en` con el Full correspondiente.
 
-![imagen7](imagenes/I6.png)
-![imagen8](imagenes/I7.png)
+![imagen7](Imagenes/I6.png)
+![imagen8](Imagenes/I7.png)
 
 ---
 
@@ -186,7 +186,7 @@ Para ejecutar la restauración guiada que permite tomar capturas con reloj visib
 ```
 El script restaurará cada estado (C0, C1, C2, C3), pausará la consola diciendo `Presiona [ENTER] para continuar...`, permitiendo abrir Workbench, tomar las capturas del censo y fragmentación restaurados, y reanudar con la siguiente ronda.
 
-![imagen9](imagenes/I8.png)
+![imagen9](Imagenes/I8.png)
 
 ---
 
@@ -208,7 +208,7 @@ Para validar de forma instantánea y matemática que la base de datos restaurada
 - **Rojo `[ERROR]`:** Se detectó una inconsistencia o pérdida de registros.
 - **Reporte en Disco:** Guarda un log detallado en `Fase2/logs/validacion_<ciclo>_<carga>_<timestamp>.log`.
 
-![imagen10](imagenes/I9.png)
+![imagen10](Imagenes/I9.png)
 
 ---
 
@@ -222,7 +222,7 @@ Para validar de forma instantánea y matemática que la base de datos restaurada
    - `tamano_bytes`: Tamaño físico transferido a disco.
    - `resultado`: Debe indicar `OK`.
 
-![imagen11](imagenes/I10.png)
+![imagen11](Imagenes/I10.png)
 
 2. **`Fase2/logs/bitacora_restauracion.csv`:**
    Contiene el registro de las restauraciones y medición del RTO:
