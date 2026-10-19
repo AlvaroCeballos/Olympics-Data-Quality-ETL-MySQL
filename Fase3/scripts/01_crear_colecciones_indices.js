@@ -1,6 +1,6 @@
 // =============================================================================
 // 01_crear_colecciones_indices.js
-// Integrante 1: Creación de colecciones e índices
+// Creación de colecciones e índices
 // =============================================================================
 
 const dbName = 'olimpiadas';
@@ -30,7 +30,7 @@ if (!b.getCollectionNames().includes('atletas')) {
   print("Coleccion 'atletas' ya existía.");
 }
 
-print("Creando índices para 'atletas'...");
+print("Creando indices para 'atletas'...");
 b.atletas.createIndex({ "nombre_norm": 1 }, { name: "idx_atletas_nombre_norm" });
 b.atletas.createIndex({ "tokens": 1 }, { name: "idx_atletas_tokens" });
 // id_externo es nulo para los atletas provenientes de Kaggle (DT-001)
