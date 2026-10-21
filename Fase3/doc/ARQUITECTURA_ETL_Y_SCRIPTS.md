@@ -1,168 +1,167 @@
 # ARQUITECTURA DEL PIPELINE ETL Y GUÍA DE SCRIPTS PYTHON
 **Proyecto: Base de Datos Unificada de Juegos Olímpicos (1896–2024)**  
 **Curso: Sistemas de Bases de Datos 2 — USAC**  
-**Fase 3 — Integrante 2: Álvaro Gabriel Ceballos Gil (202300673)**  
+**Fase 3 — Grupo 18**  
 
 ---
 
-## 1. ¿Qué es el Proceso ETL en esta Fase?
+## 1. Proceso ETL de Carga de Datos para MongoDB
 
-El proceso **ETL** (*Extract, Transform, Load* — Extracción, Transformación y Carga) es el puente entre el modelo relacional (MySQL en 3NF) y el modelo documental NoSQL (MongoDB Atlas). 
+El proceso de **Extracción, Transformación y Carga (ETL)** de esta fase constituye la transición técnica desde el modelo relacional normalizado (MySQL en 3NF con 12 tablas) hacia un modelo no relacional orientado a documentos en MongoDB Atlas.
 
-No se trata de una simple exportación de tablas, sino de una **reestructuración arquitectónica** orientada a optimizar las consultas en tiempo de ejecución:
+El diseño evita replicar la estructura tabular relacional de forma aislada. La arquitectura se fundamenta en una **desnormalización funcional por caso de uso**, estructurando los documentos en torno a las entidades pivote del negocio olímpico (atleta y país). Esta estrategia garantiza que las consultas analíticas respondan en orden de milisegundos, eliminando la sobrecarga computacional de múltiples etapas `$lookup` o recorridos iterativos entre colecciones.
 
-```
-┌─────────────────────────────────┐
-│     1. EXTRACCIÓN (MySQL)       │
-│ Conexión a 'olimpiadas' local.  │
-│ Lectura de tablas con SELECT y  │
-│ JOINs relacionales controlados. │
-└───────────────┬─────────────────┘
-                │
-                ▼
-┌─────────────────────────────────┐
-│   2. TRANSFORMACIÓN (Python)    │
-│ • Desnormalización funcional.   │
-│ • Conversión a documentos BSON. │
-│ • Normalización léxica (NFKD).  │
-│ • Generación de tokens multikey.│
-│ • Embebido de sedes y NOCs.     │
-└───────────────┬─────────────────┘
-                │
-                ▼
-┌─────────────────────────────────┐
-│       3. CARGA (MongoDB)        │
-│ Inserción masiva en la nube vía │
-│ pymongo en lotes ordered=False. │
-│ Generación de bitácoras y logs. │
-└─────────────────────────────────┘
-```
+### Bloque de Extracción (MySQL Origen)
+* **Origen de datos:** Instancia de MySQL local ejecutándose en el puerto 3306 sobre la base de datos `olimpiadas`.
+* **Mecanismo de conexión:** Se emplea la librería oficial `mysql.connector` utilizando cursores en modo diccionario (`dictionary=True`), permitiendo manipular cada tupla extraída como un mapa asociativo clave-valor en Python.
+* **Técnica de lectura:**
+  * Para las entidades dimensionales (`olimpiada`, `sede`, `pais`, `noc`), se extrae el conjunto consolidado mediante sentencias `SELECT` con `LEFT JOIN`.
+  * Para los atletas y las participaciones masivas, se implementa una extracción paginada mediante lotes secuenciales (`LIMIT` y `OFFSET`), evitando saturar la memoria RAM del equipo y previniendo desconexiones por timeout en el socket de MySQL.
 
-1. **Extracción (Extract):** Se conecta mediante `mysql.connector` a la base de datos local `olimpiadas` (puerto 3306), donde residen los datos saneados y deduplicados de la Fase 1.
-2. **Transformación (Transform):** Los registros relacionales se transforman en memoria en documentos JSON/BSON jerárquicos. Aquí se aplica la regla del catedrático: **no crear una colección por cada tabla relacional**, sino desnormalizar y agrupar la información según el pivote de consulta (atleta y país).
-3. **Carga (Load):** Utilizando el driver oficial `pymongo`, los documentos se transmiten por la red al clúster de **MongoDB Atlas** (`olimpiadas.vowmkp2.mongodb.net`) mediante lotes (`insert_many` con `ordered=False`) para garantizar alta velocidad y tolerancia a fallos.
+### Bloque de Transformación (Python en Memoria)
+* **Desnormalización funcional:** Se unifican atributos de tablas que en el modelo relacional estaban separadas por reglas de normalización. La información de la sede se incrusta en la edición, y los datos del atleta, evento, disciplina, deporte y medalla se consolidan en cada participación.
+* **Construcción jerárquica de documentos:** Los valores planos se agrupan en subdocumentos anidados (objetos BSON) y arreglos, estructurando los documentos según su entidad pivote.
+* **Normalización de texto y tokens:** En la colección de atletas se ejecuta la función `normalize_name` heredada de la Fase 1, la cual convierte a minúsculas, elimina tildes y diacríticos (Unicode NFKD), remueve viñetas y puntuación, restaura apellidos hispanos mediante `_CORRUPTED_MAP` y genera un arreglo de palabras clave (`tokens`) para indexación multikey.
+* **Conversión de tipos de datos:** Los tipos específicos de MySQL no compatibles de forma nativa con BSON se transforman mediante la función auxiliar `clean_val` (los objetos `Decimal` se convierten a `float` y las fechas `date`/`datetime` a cadenas ISO-8601 `YYYY-MM-DD`).
+
+### Bloque de Carga (MongoDB Atlas Destino)
+* **Destino de datos:** Clúster oficial en la nube de MongoDB Atlas (`olimpiadas.vowmkp2.mongodb.net`) sobre la base de datos `olimpiadas`.
+* **Mecanismo de inserción:** Se utiliza el driver oficial `pymongo` invocando el método `insert_many(lote, ordered=False)`. La bandera `ordered=False` permite que MongoDB procese las inserciones en paralelo en el servidor sin detener la ejecución si un registro individual presentara alguna excepción no fatal.
+* **Auditoría y trazabilidad:** Cada lote insertado registra el tiempo de transferencia, la tasa de documentos por segundo y emite una bitácora persistente con fecha y hora dentro de la carpeta `Fase3/logs/`.
 
 ---
 
-## 2. Decisiones de Desnormalización y Modelo NoSQL (4 Colecciones)
+## 2. Decisiones de Desnormalización y Modelo Documental (4 Colecciones)
 
-El diseño atiende estrictamente las observaciones del catedrático (Ing. Luis Alberto Arias):
-> *"Allí estás pensando en normalizar; no normalices, que repita la info, lo que importa aquí es mostrar la data correctamente... entre más ciclos, más recorridos y más juntas (lookups) le pones a tu script, haces lento el Mongo."*
+El diseño adopta el principio de desnormalización estratégica en bases documentales: la redundancia controlada de datos se prioriza sobre la normalización estricta cuando el objetivo es maximizar la velocidad de lectura y simplificar la jerarquía de los documentos resultantes. Separar en exceso las entidades obligaría a encadenar múltiples lecturas o agregaciones complejas en tiempo de ejecución, lo que degradaría el tiempo de respuesta.
 
-```
-                     ┌────────────────────────┐
-                     │   ediciones (63 docs)  │
-                     │  Sede y país embebido  │
-                     └────────────────────────┘
-                                 ▲
-                                 │
-┌───────────────────────┐        │        ┌────────────────────────┐
-│  atletas (190k docs)  │        │        │   paises (487 docs)    │
-│  nombre_norm + tokens ├────────┼───────►│ NOCs + Sedes embebidas │
-└───────────┬───────────┘        │        └───────────┬────────────┘
-            │                    │                    │
-            │        ┌───────────┴────────────┐       │
-            └───────►│ resultados (380k docs) │◄──────┘
-                     │ Participación aplanada │
-                     │ Cero $lookup costosos  │
-                     └────────────────────────┘
-```
+La base de datos se estructura en cuatro colecciones documentales:
 
-### A. Colección `ediciones` (63 documentos)
-* **Pivote:** Cada edición de los Juegos Olímpicos (1896 Atenas hasta 2024 París).
-* **Transformación:** En lugar de dejar la tabla `sede` por separado, se embeben la ciudad y el país organizador directamente dentro del documento (`sede.ciudad`, `sede.pais_codigo`, `sede.pais_nombre`).
-* **Propósito:** Responder en 1 solo paso datos de la sede y el año olímpico.
+### Bloque Colección: `ediciones` (63 documentos)
+* **Entidad Pivote:** Edición histórica de los Juegos Olímpicos (desde Atenas 1896 hasta París 2024).
+* **Campos Principales:**
+  * `_id`: Identificador numérico coincidente con `id_olimpiada` de MySQL.
+  * `anio`: Año de celebración de los juegos (ejemplo: 2024).
+  * `temporada`: Temporada deportiva (`Summer` o `Winter`).
+  * `nombre_juegos`: Denominación formal (ejemplo: `2024 Summer`).
+  * `sede`: Subdocumento embebido con `ciudad`, `pais_codigo` y `pais_nombre`.
+* **Beneficio Técnico:** Elimina la necesidad de consultar la tabla `sede` por separado. Al consultar cualquier edición se obtiene de forma inmediata la ciudad y el país organizador.
 
-### B. Colección `paises` (487 documentos)
-* **Pivote:** Entidades geográficas y comités deportivos reconocidos.
-* **Transformación:**
-  1. Se incrusta el arreglo `nocs: [{ codigo, nombre, notas }]` para admitir múltiples códigos históricos por país.
-  2. Se incrusta el arreglo `sedes_historicas: [{ anio, temporada, ciudad }]` y la bandera `es_sede_historica: true/false`.
-* **Propósito:** Cumplir el **Requerimiento (d)** del enunciado (*"desplegar si ha sido sede en alguna ocasión y qué años"*) de forma **instantánea**, sin requerir consultas cruzadas a la colección de resultados.
+### Bloque Colección: `paises` (487 documentos)
+* **Entidad Pivote:** Catálogo de países soberanos y delegaciones deportivas históricas.
+* **Campos Principales:**
+  * `_id`: Identificador numérico de país.
+  * `codigo`: Código ISO o territorial de 3 letras (ejemplo: `FRA`, `GUA`).
+  * `nombre`: Nombre oficial del país.
+  * `nombre_norm`: Nombre normalizado en minúsculas y sin acentos para búsquedas.
+  * `es_sede_historica`: Booleano (`true` / `false`) que indica si el país albergó alguna edición olímpica.
+  * `sedes_historicas`: Arreglo de subdocumentos con cada una de las ediciones albergadas, conteniendo `anio`, `temporada` y `ciudad`.
+  * `nocs`: Arreglo de comités olímpicos asociados con `codigo`, `nombre` y `notas`.
+* **Beneficio Técnico:** Resuelve de manera inmediata el **Requerimiento (d)** del proyecto (*"desplegar si ha sido sede en alguna ocasión y qué años"*). Una sola lectura al documento del país retorna el listado de años y ciudades anfitrionas sin recorrer millones de participaciones.
 
-### C. Colección `atletas` (190,471 documentos)
-* **Pivote:** Ficha biográfica consolidada de cada deportista olímpico.
-* **Transformación:**
-  1. Se genera el atributo `nombre_norm` mediante la función [`normalize_name`](file:///d:/Proyectos%20U/Bases%202/Proyecto%201/SBD2B_PROYECT1_2S2026_G18/etl/utils.py) de la Fase 1 (minúsculas, normalización Unicode NFKD sin tildes, eliminación de viñetas `•`, reemplazo de puntuación por espacios y restauración de apellidos raspados mediante `_CORRUPTED_MAP`).
-  2. Se calcula el arreglo `tokens: ["usain", "st", "leo", "bolt"]` con palabras clave $\ge 2$ caracteres.
-* **Propósito:** Búsquedas por nombre completo, nombres parciales o apellidos mediante el índice multikey `idx_atletas_tokens`, permitiendo localizar al atleta en menos de 5 milisegundos.
+### Bloque Colección: `atletas` (190,471 documentos)
+* **Entidad Pivote:** Ficha biográfica maestra del deportista olímpico.
+* **Campos Principales:**
+  * `_id`: Identificador único del atleta (`id_atleta`).
+  * `id_externo`: Identificador biográfico original de Olympedia (o `null` si proviene de fuentes Kaggle).
+  * `nombre`: Nombre del atleta en formato original.
+  * `nombre_norm`: Cadena en minúsculas, sin diacríticos ni viñetas, con corrección fonética.
+  * `tokens`: Arreglo de palabras individuales ($\ge 2$ caracteres) derivado de `nombre_norm`.
+  * `sexo`: Género homologado (`M` o `F`).
+  * `fecha_nac`: Fecha de nacimiento en formato `YYYY-MM-DD`.
+  * `pais_nacimiento`: Subdocumento con `codigo` y `nombre` del país de nacimiento.
+  * `altura_cm` y `peso_kg`: Métricas antropométricas base.
+  * `afiliacion`, `apodo`, `titulo`: Metadatos preservados de la data cruda original.
+* **Beneficio Técnico:** Mediante el índice multikey sobre `tokens`, el script de consulta por atleta puede encontrar coincidencias exactas o parciales por nombre o apellido en menos de 5 milisegundos.
 
-### D. Colección `resultados` (380,548 documentos)
-* **Pivote:** Hecho transaccional de cada participación olímpica.
-* **Transformación:** Se desnormalizan 9 tablas relacionales en una sola estructura aplanada (`atleta`, `olimpiada`, `pais`, `noc`, `equipo`, `deporte`, `disciplina`, `evento`, `medalla`, `posicion`, `es_empate`, métricas físicas).
-* **Propósito:** Permitir que el Integrante 3 ejecute consultas analíticas y medalleros acumulados filtrando por atleta o país utilizando índices compuestos B-Tree (`idx_resultados_atleta_anio`, `idx_resultados_pais_anio_deporte`), **eliminando completamente la necesidad de `$lookup` lentos**.
+### Bloque Colección: `resultados` (380,548 documentos)
+* **Entidad Pivote:** Hecho transaccional aplanado de cada participación olímpica.
+* **Campos Principales:**
+  * `_id`: Identificador único de participación (`id_participacion`).
+  * `atleta`: Subdocumento con `id`, `nombre` y `sexo`.
+  * `olimpiada`: Subdocumento con `id`, `anio`, `temporada` y `nombre_juegos`.
+  * `pais`: Subdocumento con `codigo` y `nombre` de la delegación representada.
+  * `noc`: Subdocumento con `codigo` del comité olímpico.
+  * `equipo`: Nombre del representativo deportivo o pareja.
+  * `deporte` y `disciplina`: Clasificación deportiva (con disciplina puente incluida).
+  * `evento`: Nombre específico de la prueba deportiva.
+  * `medalla`: Presea obtenida (`Gold`, `Silver`, `Bronze` o `NA`).
+  * `posicion`: Puesto registrado (numérico o texto como `DNS`, `DNF`).
+  * `es_empate`: Booleano indicador de empate deportivo.
+  * `edad`, `altura_reg`, `peso_reg`: Métricas físicas específicas registradas en dicha edición.
+* **Beneficio Técnico:** La colección no requiere operaciones de combinación (`$lookup`). Consultar el medallero o el historial de un atleta o país se ejecuta directamente sobre los índices B-Tree (`idx_resultados_atleta_anio` e `idx_resultados_pais_anio_deporte`).
 
 ---
 
 ## 3. Inventario y Explicación Detallada de los Scripts en `Fase3/scripts/`
 
-A continuación se detalla el propósito técnico, flujo de ejecución y responsabilidades de cada script de Python:
+El pipeline se encuentra modularizado en scripts ejecutables independientes:
 
-### 1. `test_conexion.py`
-* **Rol:** Verificador preliminar de conectividad y handshake de red (Fase 0).
-* **¿Qué hace?:**
-  1. Lee variables de conexión desde `Fase3/.env` (`MYSQL_HOST`, `MYSQL_USER`, `MONGO_URI`, etc.).
-  2. Ejecuta un handshake con MySQL local ejecutando `SELECT DATABASE(), VERSION()` y reporta el conteo de atletas y participaciones en el origen.
-  3. Ejecuta un comando administrativo `client.admin.command('ping')` contra el clúster en la nube de MongoDB Atlas con un timeout de 5 segundos (*fail-fast*).
-  4. Lista las colecciones existentes en Atlas para certificar acceso de lectura y escritura.
+### Script: `test_conexion.py`
+* **Propósito:** Verificación preliminar de conectividad y handshake de red (Fase 0).
+* **Operación:**
+  1. Carga las variables desde `Fase3/.env`.
+  2. Conecta con MySQL local ejecutando `SELECT DATABASE(), VERSION()` y emite el censo de atletas y participaciones.
+  3. Ejecuta un comando de control `client.admin.command('ping')` contra el clúster de MongoDB Atlas con un timeout corto de 5 segundos.
+  4. Lista las colecciones presentes en el clúster para certificar permisos de lectura y escritura.
 
-### 2. `00_auditoria_censo_mysql.py`
-* **Rol:** Certificación censal de la base de datos origen de la Fase 1 (Fase 1 del plan).
-* **¿Qué hace?:**
-  1. Ejecuta `SELECT COUNT(*)` sobre las **12 tablas relacionales** de MySQL (`pais`, `noc`, `poblacion_pais`, `sede`, `olimpiada`, `deporte`, `disciplina`, `evento`, `equipo`, `atleta`, `medalla`, `participacion`).
-  2. Audita **13 relaciones de clave foránea** buscando registros huérfanos.
-  3. Comprueba el desglose exacto de las 380,548 medallas (Oro, Plata, Bronce, NA).
-  4. Genera automáticamente un log fechado en `Fase3/logs/censo_mysql_YYYYMMDD_HHMMSS.log` con el dictamen de integridad.
+### Script: `00_auditoria_censo_mysql.py`
+* **Propósito:** Certificación censal de la base de datos relacional de la Fase 1 antes de migrar (Fase 1 del plan).
+* **Operación:**
+  1. Ejecuta conteos sobre las **12 tablas relacionales** (`pais`, `noc`, `poblacion_pais`, `sede`, `olimpiada`, `deporte`, `disciplina`, `evento`, `equipo`, `atleta`, `medalla`, `participacion`).
+  2. Audita **13 relaciones de clave foránea** en busca de registros huérfanos.
+  3. Verifica la distribución de las 380,548 medallas por tipo.
+  4. Emite un log fechado en `Fase3/logs/censo_mysql_*.log` que certifica 0 claves rotas y 613,078 filas totales.
 
-### 3. `03_prueba_volumetria_10k.py`
-* **Rol:** Prueba de tamaño y proyección de capacidad en Atlas M0 (Fase 2 del plan).
-* **¿Qué hace?:**
-  1. Extrae un bloque de **10,000 participaciones desnormalizadas** desde MySQL.
-  2. Limpia e inserta el lote en la colección `resultados` de Atlas.
-  3. Invoca la función administrativa `db.command('collStats', 'resultados')` para interrogar directamente al motor **WiredTiger**.
-  4. Mide `avgObjSize` (455 bytes), `storageSize` (1.49 MB) y `totalIndexSize` (1.30 MB), calculando el ratio de compresión real (2.91x).
-  5. Proyecta matemáticamente el almacenamiento de toda la base frente al límite de 512 MB de Atlas M0 (~139 MB de uso proyectado, ~27.1%).
+### Script: `03_prueba_volumetria_10k.py`
+* **Propósito:** Prueba de capacidad física y proyección de almacenamiento en Atlas M0 (Fase 2 del plan).
+* **Operación:**
+  1. Extrae un bloque de **10,000 participaciones desnormalizadas** de MySQL.
+  2. Inserta el lote en la colección `resultados` de MongoDB Atlas.
+  3. Invoca la instrucción administrativa `collStats` para interrogar al motor **WiredTiger**.
+  4. Obtiene el tamaño promedio (`avgObjSize` de 455 bytes), el almacenamiento comprimido (`storageSize`) y el tamaño de índices (`totalIndexSize`).
+  5. Calcula la proyección global de almacenamiento (~139 MB totales frente al límite de 512 MB de la capa gratuita M0).
   6. Guarda la bitácora técnica en `Fase3/logs/volumetria_piloto_10k_*.log`.
 
-### 4. `03_cargar_datos_mongo.py`
-* **Rol:** Motor principal del pipeline ETL para la migración completa a MongoDB Atlas.
-* **Componentes y funciones internas:**
-  * `clean_val(v)`: Convierte tipos no serializables en BSON nativo (objetos `Decimal` a `float`, y fechas `date`/`datetime` a cadenas ISO `YYYY-MM-DD`).
-  * `normalize_name(name)`: Carga dinámica mediante `importlib.util` de la rutina de normalización de la Fase 1 (DT-002 y DT-027) para evitar errores del linter en el editor de código.
-  * `extraer_transformar_ediciones(cur)`:
-    * Ejecuta `SELECT` con `LEFT JOIN` entre `olimpiada`, `sede` y `pais`.
-    * Retorna la lista de 63 documentos con la estructura de sede anidada.
-  * `extraer_transformar_paises(cur)`:
-    * Pre-calcula en memoria diccionarios de sedes y de comités NOC por país.
-    * Mapea los 487 países incrustando `sedes_historicas` y `nocs`.
-  * `extraer_transformar_atletas(cur, offset, limit)`:
-    * Extrae la biografía de atletas desde MySQL por bloques.
-    * Calcula `nombre_norm` y el arreglo de `tokens`.
-    * Limpia campos nulos para optimizar espacio BSON.
-  * `extraer_lote_resultados(cur, offset, limit)`:
-    * Ejecuta el `SELECT` aplanado de participaciones con 9 `LEFT JOIN` hacia atletas, olimpiadas, sedes, eventos, disciplinas, deportes, equipos, comités, países y medallas.
-    * Retorna lotes de documentos BSON listos para inserción masiva.
+### Script: `01_cargar_ediciones_paises.py`
+* **Propósito:** Ejecución de la Fase 3 del plan: carga completa de las colecciones dimensionales de contexto.
+* **Operación:**
+  1. Extrae y transforma las **63 ediciones olímpicas** embebiendo la información de la sede (`ciudad`, `pais_codigo`, `pais_nombre`).
+  2. Extrae y transforma los **487 países** calculando en memoria los arreglos `sedes_historicas` y `nocs`.
+  3. Inserta ambos bloques en MongoDB Atlas con `ordered=False`.
+  4. Verifica documentos de muestra (Francia con sus 6 ediciones albergadas, Guatemala como participante, y París 2024).
+  5. Genera la bitácora con fecha y hora en `Fase3/logs/carga_ediciones_paises_*.log`.
+
+### Script: `03_cargar_datos_mongo.py`
+* **Propósito:** Módulo central con las funciones de transformación y carga masiva del proyecto.
+* **Funciones Clave:**
+  * `clean_val(v)`: Convierte tipos `Decimal` y `date`/`datetime` a formatos compatibles con BSON.
+  * `normalize_name(name)`: Carga dinámica con `importlib.util` de la lógica de normalización de nombres y mitigación de errores de scraping (DT-002 y DT-027).
+  * `extraer_transformar_ediciones(cur)`: Consulta `olimpiada`, `sede` y `pais` retornando la lista de 63 documentos.
+  * `extraer_transformar_paises(cur)`: Procesa las sedes históricas y los comités para los 487 países.
+  * `extraer_transformar_atletas(cur, offset, limit)`: Extrae atletas por bloques, computa `nombre_norm`, genera el arreglo `tokens` y descarta campos nulos.
+  * `extraer_lote_resultados(cur, offset, limit)`: Ejecuta la consulta masiva con 9 `LEFT JOIN` para armar lotes de participaciones desnormalizadas.
 
 ---
 
-## 4. ¿Cómo Verificar los Datos en Cualquier Momento?
+## 4. Guía de Verificación de Censos en MongoDB Atlas
 
-Para certificar en tiempo real qué colecciones y cuántos documentos existen en MongoDB Atlas:
+Para corroborar en cualquier momento la cantidad de documentos almacenados en el clúster:
 
-### Opción 1: Consulta rápida por línea de comandos
-Ejecutar desde PowerShell en la raíz del proyecto:
+### Verificación por Consola (PowerShell / Terminal)
+Instrucción de consulta directa:
 ```powershell
 python -c "import os, pymongo, dotenv; dotenv.load_dotenv('Fase3/.env'); c = pymongo.MongoClient(os.getenv('MONGO_URI')); db = c['olimpiadas']; print({col: db[col].count_documents({}) for col in ['ediciones', 'paises', 'atletas', 'resultados']})"
 ```
 
-### Opción 2: MongoDB Atlas Web Explorer
-1. Ingresar a [MongoDB Cloud](https://cloud.mongodb.com/).
-2. Seleccionar la base de datos `olimpiadas` en el Data Explorer.
-3. El panel lateral izquierdo mostrará en tiempo real el censo de documentos por colección:
-   * `ediciones`: 63
-   * `paises`: 487
-   * `atletas`: 190,471
-   * `resultados`: 380,548
+### Verificación Visual en MongoDB Cloud
+1. Acceder al portal web de **MongoDB Atlas** e ingresar a **Data Explorer** (Browse Collections).
+2. Seleccionar la base de datos `olimpiadas`.
+3. El panel lateral mostrará el conteo de documentos por colección:
+   * **`ediciones`:** 63 documentos (Cargados al 100%).
+   * **`paises`:** 487 documentos (Cargados al 100%).
+   * **`atletas`:** 190,471 documentos (Pendiente Fase 4).
+   * **`resultados`:** 380,548 documentos (Pendiente Fase 5).
 
 ---
-*Documento elaborado para auditoría técnica de la Fase 3 — Grupo 18.*
+*Documento técnico de arquitectura y referencia de ejecución — Grupo 18.*

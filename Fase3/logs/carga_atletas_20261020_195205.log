@@ -1,0 +1,37 @@
+===========================================================================
+       FASE 4: EXTRACCIÓN Y CARGA MASIVA DE ATLETAS ('atletas')        
+       Fecha y Hora: 2026-10-20 19:52:05
+       Destino: MongoDB Atlas ('olimpiadas.atletas')
+===========================================================================
+
+[1/4] CENSO DE ATLETAS EN ORIGEN (MySQL): 190,471 registros.
+
+[2/4] [INFO] La colección 'atletas' ya cuenta con los 190,471 documentos cargados.
+      Se omite la reinserción en red (modo idempotente).
+
+[3/4] VERIFICACIÓN DE CONTEO Y DOCUMENTOS DE MUESTRA EN ATLAS:
+      Conteo oficial en Atlas: 190,471 documentos.
+
+  • Muestra Atleta 1 (Usain Bolt):
+    - ID: 104492 | ID Olympedia: 105512
+    - Nombre: Usain Bolt
+    - Nombre Normalizado: 'usain bolt'
+    - Tokens para búsqueda: ['usain', 'bolt', 'st', 'leo']
+    - Nacimiento: 1986-08-21 en {'codigo': 'JAM', 'nombre': 'Jamaica'}
+    - Medidas: 196.0 cm / 95.0 kg
+
+  • Muestra Atleta 2 (Erick Barrondo):
+    - ID: 121191 | Nombre: Érick Barrondo
+    - Tokens para búsqueda: ['erick', 'barrondo', 'bernabe', 'garcia']
+    - Nacionalidad: None
+
+[4/4] VALIDACIÓN DEL USO DE ÍNDICES:
+  • Plan ganador para búsqueda por token 'bolt': IXSCAN -> FETCH
+  • Tiempo de ejecución: 0 ms
+  • Documentos examinados: 3
+  • Documentos devueltos: 3
+  • Estado del índice: [OK] Utiliza ÍNDICE MULTIKEY
+
+===========================================================================
+  DICTAMEN PARIDAD: Esperados: 190,471 | Obtenidos: 190,471 --> [PARIDAD 100% CERTIFICADA]
+===========================================================================
