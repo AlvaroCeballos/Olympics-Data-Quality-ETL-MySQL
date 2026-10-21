@@ -1,0 +1,51 @@
+===========================================================================
+       FASE 4: EXTRACCIÓN Y CARGA MASIVA DE ATLETAS ('atletas')        
+       Fecha y Hora: 2026-10-20 23:59:37
+       Destino: MongoDB Atlas ('olimpiadas.atletas')
+===========================================================================
+
+[1/4] CENSO DE ATLETAS EN ORIGEN (MySQL): 190,471 registros.
+
+[2/4] LIMPIEZA PREVIA E INSERCIÓN EN LOTES EN MONGODB ATLAS...
+      Colección 'atletas' vaciada para carga limpia y reproducible.
+      • Lote 01/10: Insertados 20,000 docs | Extr: 0.85s | Ins: 8.24s (2,427 docs/s) | Progreso:  10.5%
+      • Lote 02/10: Insertados 20,000 docs | Extr: 0.91s | Ins: 9.12s (2,193 docs/s) | Progreso:  21.0%
+      • Lote 03/10: Insertados 20,000 docs | Extr: 0.89s | Ins: 11.45s (1,747 docs/s) | Progreso:  31.5%
+      • Lote 04/10: Insertados 20,000 docs | Extr: 0.92s | Ins: 10.80s (1,852 docs/s) | Progreso:  42.0%
+      • Lote 05/10: Insertados 20,000 docs | Extr: 0.88s | Ins: 9.95s (2,010 docs/s) | Progreso:  52.5%
+      • Lote 06/10: Insertados 20,000 docs | Extr: 0.90s | Ins: 12.30s (1,626 docs/s) | Progreso:  63.0%
+      • Lote 07/10: Insertados 20,000 docs | Extr: 0.95s | Ins: 11.15s (1,794 docs/s) | Progreso:  73.5%
+      • Lote 08/10: Insertados 20,000 docs | Extr: 0.91s | Ins: 10.50s (1,905 docs/s) | Progreso:  84.0%
+      • Lote 09/10: Insertados 20,000 docs | Extr: 0.87s | Ins: 11.80s (1,695 docs/s) | Progreso:  94.5%
+      • Lote 10/10: Insertados 10,471 docs | Extr: 0.52s | Ins: 6.20s (1,689 docs/s) | Progreso: 100.0%
+
+---------------------------------------------------------------------------
+      RESUMEN CARGA: 190,471 atletas insertados en 109.31 s (1,743 docs/s promedio)
+---------------------------------------------------------------------------
+
+[3/4] VERIFICACIÓN DE CONTEO Y DOCUMENTOS DE MUESTRA EN ATLAS:
+      Conteo oficial en Atlas: 190,471 documentos.
+
+  • Muestra Atleta 1 (Usain Bolt):
+    - ID: 104492 | ID Olympedia: 105512
+    - Nombre: Usain Bolt
+    - Nombre Normalizado: 'usain bolt'
+    - Tokens para búsqueda: ['usain', 'bolt', 'st', 'leo']
+    - Nacimiento: 1986-08-21 en {'codigo': 'JAM', 'nombre': 'Jamaica'}
+    - Medidas: 196.0 cm / 95.0 kg
+
+  • Muestra Atleta 2 (Erick Barrondo):
+    - ID: 121191 | Nombre: Érick Barrondo
+    - Tokens para búsqueda: ['erick', 'barrondo', 'bernabe', 'garcia']
+    - Nacionalidad: None
+
+[4/4] VALIDACIÓN DEL USO DE ÍNDICES:
+  • Plan ganador para búsqueda por token 'bolt': IXSCAN -> FETCH
+  • Tiempo de ejecución: 0 ms
+  • Documentos examinados: 3
+  • Documentos devueltos: 3
+  • Estado del índice: [OK] Utiliza ÍNDICE MULTIKEY
+
+===========================================================================
+  DICTAMEN PARIDAD: Esperados: 190,471 | Obtenidos: 190,471 --> [PARIDAD 100% CERTIFICADA]
+===========================================================================

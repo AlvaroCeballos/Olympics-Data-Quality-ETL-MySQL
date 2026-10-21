@@ -1,0 +1,53 @@
+======================================================================
+     FASE 1: AUDITORÍA Y CENSO DE LA BASE DE DATOS MYSQL (ORIGEN)     
+     Fecha y Hora: 2026-10-20 23:20:00
+     Servidor: localhost:3306 | Base de Datos: 'olimpiadas'
+======================================================================
+
+[1/3] CENSO DETALLADO DE LAS 12 TABLAS RELACIONALES:
+----------------------------------------------------------------------
+No.  | Tabla                |    Total Registros | Estado         
+----------------------------------------------------------------------
+1    | pais                 |                487 | [OK] Poblada   
+2    | noc                  |                236 | [OK] Poblada   
+3    | poblacion_pais       |             16,930 | [OK] Poblada   
+4    | sede                 |                 45 | [OK] Poblada   
+5    | olimpiada            |                 63 | [OK] Poblada   
+6    | deporte              |                148 | [OK] Poblada   
+7    | disciplina           |                149 | [OK] Poblada   
+8    | evento               |              3,152 | [OK] Poblada   
+9    | equipo               |             20,845 | [OK] Poblada   
+10   | atleta               |            190,471 | [OK] Poblada   
+11   | medalla              |                  4 | [OK] Poblada   
+12   | participacion        |            380,548 | [OK] Poblada   
+----------------------------------------------------------------------
+     TOTAL FILAS CONSOLIDADAS:            613,078
+----------------------------------------------------------------------
+
+[2/3] AUDITORÍA DE INTEGRIDAD REFERENCIAL (CLAVES FORÁNEAS):
+  • noc -> pais                         : [OK] 0 huérfanas
+  • sede -> pais                        : [OK] 0 huérfanas
+  • olimpiada -> sede                   : [OK] 0 huérfanas
+  • disciplina -> deporte               : [OK] 0 huérfanas
+  • evento -> disciplina                : [OK] 0 huérfanas
+  • equipo -> noc                       : [OK] 0 huérfanas
+  • atleta -> pais (nacimiento)         : [OK] 0 huérfanas
+  • poblacion_pais -> pais              : [OK] 0 huérfanas
+  • participacion -> atleta             : [OK] 0 huérfanas
+  • participacion -> evento             : [OK] 0 huérfanas
+  • participacion -> olimpiada          : [OK] 0 huérfanas
+  • participacion -> equipo             : [OK] 0 huérfanas
+  • participacion -> medalla            : [OK] 0 huérfanas
+
+[3/3] MÉTRICAS CLAVE PARA LA MIGRACIÓN A MONGODB:
+  • Rango de Ediciones Olímpicas   : 1896 a 2024 (63 ediciones)
+  • Atletas con participaciones    : 190,237 de 190,471
+  • Distribución de Medallas en Participación:
+      - Gold    :     18,769 participaciones
+      - Silver  :     18,920 participaciones
+      - Bronze  :     19,345 participaciones
+      - NA      :    323,514 participaciones
+
+======================================================================
+  >>> RESULTADO: CERTIFICADO: BASE DE DATOS COMPLETA E ÍNTEGRA PARA MIGRACIÓN A MONGO
+======================================================================

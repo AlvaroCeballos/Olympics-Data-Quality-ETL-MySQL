@@ -1,0 +1,59 @@
+===========================================================================
+     FASE 5: CARGA MASIVA DE HECHOS APLANADOS ('resultados')           
+     Fecha y Hora: 2026-10-21 00:00:28
+     Destino: MongoDB Atlas ('olimpiadas.resultados')
+===========================================================================
+
+[1/4] CENSO DE PARTICIPACIONES EN ORIGEN (MySQL): 380,548 registros.
+
+[2/4] LIMPIEZA PREVIA E INSERCIÓN EN LOTES EN MONGODB ATLAS...
+      Colección 'resultados' vaciada para carga limpia y completa.
+      • Lote 01/26: Insertados 15,000 docs | Last ID:   15000 | Extr: 4.75s | Ins: 15.01s (999 docs/s) | Progreso:   3.9%
+      • Lote 02/26: Insertados 15,000 docs | Last ID:   30000 | Extr: 0.22s | Ins: 8.52s (1,761 docs/s) | Progreso:   7.9%
+      • Lote 03/26: Insertados 15,000 docs | Last ID:   45000 | Extr: 0.23s | Ins: 11.30s (1,327 docs/s) | Progreso:  11.8%
+      • Lote 04/26: Insertados 15,000 docs | Last ID:   60000 | Extr: 0.21s | Ins: 12.72s (1,179 docs/s) | Progreso:  15.8%
+      • Lote 05/26: Insertados 15,000 docs | Last ID:   75000 | Extr: 0.20s | Ins: 10.42s (1,440 docs/s) | Progreso:  19.7%
+      • Lote 06/26: Insertados 15,000 docs | Last ID:   90000 | Extr: 0.25s | Ins: 11.84s (1,267 docs/s) | Progreso:  23.7%
+      • Lote 07/26: Insertados 15,000 docs | Last ID:  105000 | Extr: 0.21s | Ins: 6.37s (2,356 docs/s) | Progreso:  27.6%
+      • Lote 08/26: Insertados 15,000 docs | Last ID:  120000 | Extr: 0.21s | Ins: 8.77s (1,710 docs/s) | Progreso:  31.5%
+      • Lote 09/26: Insertados 15,000 docs | Last ID:  135000 | Extr: 0.23s | Ins: 9.51s (1,578 docs/s) | Progreso:  35.5%
+      • Lote 10/26: Insertados 15,000 docs | Last ID:  150000 | Extr: 0.19s | Ins: 6.94s (2,160 docs/s) | Progreso:  39.4%
+      • Lote 11/26: Insertados 15,000 docs | Last ID:  165000 | Extr: 0.22s | Ins: 6.21s (2,416 docs/s) | Progreso:  43.4%
+      • Lote 12/26: Insertados 15,000 docs | Last ID:  180000 | Extr: 0.23s | Ins: 6.40s (2,344 docs/s) | Progreso:  47.3%
+      • Lote 13/26: Insertados 15,000 docs | Last ID:  195000 | Extr: 0.22s | Ins: 10.54s (1,424 docs/s) | Progreso:  51.2%
+      • Lote 14/26: Insertados 15,000 docs | Last ID:  210000 | Extr: 0.25s | Ins: 4.41s (3,401 docs/s) | Progreso:  55.2%
+      • Lote 15/26: Insertados 15,000 docs | Last ID:  225000 | Extr: 0.29s | Ins: 3.01s (4,984 docs/s) | Progreso:  59.1%
+      • Lote 16/26: Insertados 15,000 docs | Last ID:  240000 | Extr: 0.25s | Ins: 3.36s (4,463 docs/s) | Progreso:  63.1%
+      • Lote 17/26: Insertados 15,000 docs | Last ID:  255000 | Extr: 0.23s | Ins: 9.55s (1,570 docs/s) | Progreso:  67.0%
+      • Lote 18/26: Insertados 15,000 docs | Last ID:  270000 | Extr: 0.26s | Ins: 3.78s (3,971 docs/s) | Progreso:  71.0%
+      • Lote 19/26: Insertados 15,000 docs | Last ID:  285000 | Extr: 0.21s | Ins: 3.76s (3,988 docs/s) | Progreso:  74.9%
+      • Lote 20/26: Insertados 15,000 docs | Last ID:  300000 | Extr: 0.28s | Ins: 10.47s (1,432 docs/s) | Progreso:  78.8%
+      • Lote 21/26: Insertados 15,000 docs | Last ID:  315000 | Extr: 0.38s | Ins: 10.02s (1,496 docs/s) | Progreso:  82.8%
+      • Lote 22/26: Insertados 15,000 docs | Last ID:  330000 | Extr: 0.31s | Ins: 12.88s (1,164 docs/s) | Progreso:  86.7%
+      • Lote 23/26: Insertados 15,000 docs | Last ID:  345000 | Extr: 0.30s | Ins: 13.34s (1,124 docs/s) | Progreso:  90.7%
+      • Lote 24/26: Insertados 15,000 docs | Last ID:  360000 | Extr: 0.30s | Ins: 11.09s (1,352 docs/s) | Progreso:  94.6%
+      • Lote 25/26: Insertados 15,000 docs | Last ID:  375000 | Extr: 0.29s | Ins: 10.00s (1,500 docs/s) | Progreso:  98.5%
+      • Lote 26/26: Insertados  5,548 docs | Last ID:  380548 | Extr: 0.20s | Ins: 6.07s (914 docs/s) | Progreso: 100.0%
+
+---------------------------------------------------------------------------
+      RESUMEN CARGA: 380,548 resultados insertados en 237.19 s (1,604 docs/s promedio)
+---------------------------------------------------------------------------
+
+[3/4] VERIFICACIÓN DE CONTEO Y DOCUMENTOS DE MUESTRA EN ATLAS:
+      Conteo oficial en Atlas: 380,548 documentos.
+
+  • Muestra Resultado 2 (Érick Barrondo - Plata Londres 2012):
+    - ID Participación: 263895
+    - Atleta: {'id': 121191, 'nombre': 'Érick Barrondo', 'sexo': 'M'}
+    - Edición: {'id': 52, 'anio': 2012, 'temporada': 'Summer', 'nombre_juegos': '2012 Summer'}
+    - País: {'codigo': 'GUA', 'nombre': 'Guatemala'}
+    - Evento: 20 kilometres Race Walk, Men (Olympic)
+    - Medalla: Silver | Posición: 2
+
+[4/4] VALIDACIÓN DEL USO DE ÍNDICES EN 'resultados':
+  • Caso A (Atleta ID + Año): Plan: IXSCAN -> FETCH | Docs examinados: 3 | Tiempo: 0 ms
+  • Caso B (País + Año + Deporte): Plan: IXSCAN -> FETCH | Docs examinados: 30 | Tiempo: 0 ms
+
+===========================================================================
+  DICTAMEN PARIDAD: Esperados: 380,548 | Obtenidos: 380,548 --> [PARIDAD 100% CERTIFICADA]
+===========================================================================

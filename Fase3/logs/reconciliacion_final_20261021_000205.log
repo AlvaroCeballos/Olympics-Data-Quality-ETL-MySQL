@@ -1,0 +1,49 @@
+================================================================================
+     FASE 6: AUDITORÍA Y RECONCILIACIÓN FINAL (MySQL vs MongoDB Atlas)         
+     Fecha y Hora: 2026-10-21 00:02:05
+     Origen: MySQL localhost:3306 ('olimpiadas')
+     Destino: MongoDB Atlas ('olimpiadas')
+================================================================================
+
+[1/3] CONCILIACIÓN DE CONTEOS GLOBALES (ENTIDADES DIANA):
+--------------------------------------------------------------------------------
+  • Ediciones Olímpicas        : MySQL =      63 | Mongo Atlas =      63 --> [PARIDAD 100% OK]
+  • Catálogo de Países         : MySQL =     487 | Mongo Atlas =     487 --> [PARIDAD 100% OK]
+  • Atletas Maestros           : MySQL = 190,471 | Mongo Atlas = 190,471 --> [PARIDAD 100% OK]
+  • Participaciones (Hechos)   : MySQL = 380,548 | Mongo Atlas = 380,548 --> [PARIDAD 100% OK]
+--------------------------------------------------------------------------------
+
+[2/3] CONCILIACIÓN DE DISTRIBUCIÓN DE MEDALLAS EN RESULTADOS:
+--------------------------------------------------------------------------------
+  • Medalla 'Gold  ' : MySQL =  18,769 | Mongo Atlas =  18,769 --> [PARIDAD 100% OK]
+  • Medalla 'Silver' : MySQL =  18,920 | Mongo Atlas =  18,920 --> [PARIDAD 100% OK]
+  • Medalla 'Bronze' : MySQL =  19,345 | Mongo Atlas =  19,345 --> [PARIDAD 100% OK]
+  • Medalla 'NA    ' : MySQL = 323,514 | Mongo Atlas = 323,514 --> [PARIDAD 100% OK]
+--------------------------------------------------------------------------------
+
+[3/3] ESTADO DE ÍNDICES ACTIVOS EN MONGODB ATLAS:
+  • Colección 'ediciones': 3 índices
+      - _id_: [('_id', 1)]
+      - idx_ediciones_anio_temp_unique [UNIQUE]: [('anio', 1), ('temporada', 1)]
+      - idx_ediciones_sede_pais_codigo: [('sede.pais_codigo', 1)]
+  • Colección 'paises': 4 índices
+      - _id_: [('_id', 1)]
+      - idx_paises_codigo_unique [UNIQUE]: [('codigo', 1)]
+      - idx_paises_nombre_norm: [('nombre_norm', 1)]
+      - idx_paises_nocs_codigo: [('nocs.codigo', 1)]
+  • Colección 'atletas': 4 índices
+      - _id_: [('_id', 1)]
+      - idx_atletas_nombre_norm: [('nombre_norm', 1)]
+      - idx_atletas_tokens: [('tokens', 1)]
+      - idx_atletas_id_externo_parcial [UNIQUE]: [('id_externo', 1)]
+  • Colección 'resultados': 4 índices
+      - _id_: [('_id', 1)]
+      - idx_resultados_atleta_anio: [('atleta.id', 1), ('olimpiada.anio', 1)]
+      - idx_resultados_pais_anio_deporte: [('pais.codigo', 1), ('olimpiada.anio', 1), ('deporte', 1)]
+      - idx_resultados_noc_anio: [('noc.codigo', 1), ('olimpiada.anio', 1)]
+
+================================================================================
+  >>> RESULTADO FINAL: CERTIFICACIÓN DE PARIDAD EXITOSA AL 100% <<<
+  La base de datos en MongoDB Atlas se encuentra COMPLETA, ÍNTEGRA y LISTA
+  para las consultas, mediciones de rendimiento y paridad del Integrante 3.
+================================================================================

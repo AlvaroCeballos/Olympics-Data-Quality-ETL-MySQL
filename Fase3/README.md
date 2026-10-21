@@ -218,10 +218,12 @@ deben tardar"*.
 
 ## 6. Documentación Complementaria
 
+* [doc/INFORME_EXTRACCION_Y_CARGA.md](doc/INFORME_EXTRACCION_Y_CARGA.md): Informe técnico de extracción y carga, aplanado con LEFT JOIN, normalización con `utils.py`, lotes con `pymongo` y paridad censal (Integrante 2).
 * [doc/ARQUITECTURA_ETL_Y_SCRIPTS.md](doc/ARQUITECTURA_ETL_Y_SCRIPTS.md): Manual técnico detallado de desnormalización, justificación de arquitectura y diseño documental.
 * [doc/INFORME_VOLUMETRIA_ATLAS.md](doc/INFORME_VOLUMETRIA_ATLAS.md): Informe técnico de dimensionamiento físico, métricas WiredTiger y viabilidad frente al límite de 512 MB.
 * [doc/INFORME_CONSULTAS_Y_RENDIMIENTO.md](doc/INFORME_CONSULTAS_Y_RENDIMIENTO.md): Informe técnico de diseño de las consultas, mediciones de rendimiento y prueba de paridad MySQL vs MongoDB (Integrante 3).
 * [logs/](logs/): Directorio con las bitácoras fechadas de cada ejecución.
+* [scripts/ejecucion/](scripts/ejecucion/): Scripts de ejecución secuencial con generación de bitácoras fechadas.
 
 ---
 *Grupo 18 — Sistemas de Bases de Datos 2.*
