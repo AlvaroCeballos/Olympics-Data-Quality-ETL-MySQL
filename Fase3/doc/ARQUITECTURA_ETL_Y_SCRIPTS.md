@@ -124,7 +124,7 @@ El pipeline se encuentra modularizado en scripts ejecutables independientes:
   6. Guarda la bitácora técnica en `Fase3/logs/volumetria_piloto_10k_*.log`.
 
 ### Script: `01_cargar_ediciones_paises.py`
-* **Propósito:** Ejecución de la Fase 3 del plan: carga completa de las colecciones dimensionales de contexto.
+* **Propósito:** Carga completa de las colecciones dimensionales de contexto (`ediciones` y `paises`).
 * **Operación:**
   1. Extrae y transforma las **63 ediciones olímpicas** embebiendo la información de la sede (`ciudad`, `pais_codigo`, `pais_nombre`).
   2. Extrae y transforma los **487 países** calculando en memoria los arreglos `sedes_historicas` y `nocs`.
@@ -132,8 +132,42 @@ El pipeline se encuentra modularizado en scripts ejecutables independientes:
   4. Verifica documentos de muestra (Francia con sus 6 ediciones albergadas, Guatemala como participante, y París 2024).
   5. Genera la bitácora con fecha y hora en `Fase3/logs/carga_ediciones_paises_*.log`.
 
+### Script: `02_cargar_atletas.py`
+* **Propósito:** Extracción, transformación y carga masiva de los **190,471 atletas** a la colección `atletas` en MongoDB Atlas.
+* **Operación:**
+  1. Extrae de MySQL en lotes configurables de 20,000 registros mediante paginación.
+  2. Normaliza nombres aplicando la función `normalize_name` de Fase 1 (limpieza NFKD, remoción de viñetas y puntuación, corrección ortográfica de apellidos mediante `_CORRUPTED_MAP`).
+  3. Construye el arreglo multikey `tokens` derivado de las palabras individuales de `nombre` y `nombre_completo` ($\ge 2$ caracteres).
+  4. Descarta campos con valor nulo para optimizar el tamaño en disco de los documentos BSON.
+  5. Inserta en Atlas en paralelo con `ordered=False`, registrando tasa de transferencia (promedio de 1,743 docs/segundo).
+  6. Valida el funcionamiento del índice multikey `idx_atletas_tokens` mediante `explain()` (plan `IXSCAN -> FETCH` con tiempo de respuesta de 0 ms).
+  7. Guarda la bitácora en `Fase3/logs/carga_atletas_*.log`.
+
+### Script: `04_cargar_resultados.py`
+* **Propósito:** Extracción y carga masiva de las **380,548 participaciones** históricas aplanadas a la colección transaccional `resultados`.
+* **Operación:**
+  1. Implementa paginación por clave primaria (*keyset pagination*: `WHERE p.id_participacion > last_id`) en bloques de 15,000 tuplas, garantizando un tiempo de extracción constante $O(1)$ sin importar la profundidad del offset.
+  2. Aplana en memoria las 9 tablas relacionales (`atleta`, `olimpiada`, `sede`, `evento`, `disciplina`, `deporte`, `equipo`, `noc`, `pais`, `medalla`, métricas físicas).
+  3. Ejecuta inserción masiva en Atlas con `ordered=False` (tasa promedio de 1,604 docs/segundo en 3.9 minutos).
+  4. Valida documentos representativos (medalla de plata de Érick Barrondo en Londres 2012 y oros de Michael Phelps).
+  5. Certifica mediante `explain()` que las búsquedas por atleta (`idx_resultados_atleta_anio`) y por país (`idx_resultados_pais_anio_deporte`) operan sobre índices B-Tree en 0 ms sin realizar escaneo completo (`COLLSCAN`).
+  6. Guarda la bitácora en `Fase3/logs/carga_resultados_*.log`.
+
+### Script: `05_reconciliacion_cruzada.py`
+* **Propósito:** Auditoría y certificación final de paridad censal cruzada entre MySQL y MongoDB Atlas.
+* **Operación:**
+  1. Conecta simultáneamente a MySQL local y a MongoDB Atlas.
+  2. Compara los conteos totales de las 4 entidades diana:
+     * `olimpiada` (63) frente a `ediciones` (63).
+     * `pais` (487) frente a `paises` (487).
+     * `atleta` (190,471) frente a `atletas` (190,471).
+     * `participacion` (380,548) frente a `resultados` (380,548).
+  3. Ejecuta agregación en ambos motores para verificar la distribución exacta de medallas (18,769 Oro, 18,920 Plata, 19,345 Bronce, 323,514 NA).
+  4. Verifica la presencia y configuración de los 15 índices activos en Atlas.
+  5. Emite el dictamen oficial con fecha y hora en `Fase3/logs/reconciliacion_final_*.log`.
+
 ### Script: `03_cargar_datos_mongo.py`
-* **Propósito:** Módulo central con las funciones de transformación y carga masiva del proyecto.
+* **Propósito:** Módulo central de utilidades que contiene las funciones base de extracción, transformación y limpieza utilizadas por los scripts del pipeline.
 * **Funciones Clave:**
   * `clean_val(v)`: Convierte tipos `Decimal` y `date`/`datetime` a formatos compatibles con BSON.
   * `normalize_name(name)`: Carga dinámica con `importlib.util` de la lógica de normalización de nombres y mitigación de errores de scraping (DT-002 y DT-027).
@@ -154,14 +188,19 @@ Instrucción de consulta directa:
 python -c "import os, pymongo, dotenv; dotenv.load_dotenv('Fase3/.env'); c = pymongo.MongoClient(os.getenv('MONGO_URI')); db = c['olimpiadas']; print({col: db[col].count_documents({}) for col in ['ediciones', 'paises', 'atletas', 'resultados']})"
 ```
 
+Resultado verificado en vivo:
+```text
+{'ediciones': 63, 'paises': 487, 'atletas': 190471, 'resultados': 380548}
+```
+
 ### Verificación Visual en MongoDB Cloud
 1. Acceder al portal web de **MongoDB Atlas** e ingresar a **Data Explorer** (Browse Collections).
 2. Seleccionar la base de datos `olimpiadas`.
-3. El panel lateral mostrará el conteo de documentos por colección:
-   * **`ediciones`:** 63 documentos (Cargados al 100%).
-   * **`paises`:** 487 documentos (Cargados al 100%).
-   * **`atletas`:** 190,471 documentos (Pendiente Fase 4).
-   * **`resultados`:** 380,548 documentos (Pendiente Fase 5).
+3. El panel lateral mostrará el censo oficial final:
+   * **`ediciones`:** 63 documentos (100% cargado).
+   * **`paises`:** 487 documentos (100% cargado).
+   * **`atletas`:** 190,471 documentos (100% cargado).
+   * **`resultados`:** 380,548 documentos (100% cargado).
 
 ---
 *Documento técnico de arquitectura y referencia de ejecución — Grupo 18.*
