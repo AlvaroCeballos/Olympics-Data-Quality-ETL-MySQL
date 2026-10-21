@@ -1,0 +1,9 @@
+PRUEBA DE VOLUMETRIA Y CAPACIDAD EN ATLAS (FASE 2)
+Fecha: 2026-10-20T01:09:16.704953
+Lote probado: 10000 documentos
+avgObjSize: 455.00 bytes
+dataSize: 4.34 MB
+storageSize: 0.00 MB
+totalIndexSize: 0.02 MB
+Proyeccion Gran Total: 12.17 MB / 512 MB (2.4%)
+Veredicto: APROBADO PARA ATLAS (VIABILIDAD COMPLETA SIN RIESGO DE DESBORDAMIENTO)

@@ -1,0 +1,51 @@
+===========================================================================
+  FASE 3: CARGA DE COLECCIONES DIMENSIONALES ('ediciones' Y 'paises')   
+  Fecha y Hora: 2026-10-20 18:43:50
+  Destino: MongoDB Atlas ('olimpiadas')
+===========================================================================
+
+[1/4] EXTRACCIÓN Y TRANSFORMACIÓN DE 'ediciones'...
+      [OK] Extraídas 63 ediciones con sede embebida en 0.013 s
+      Insertando en MongoDB Atlas (colección 'ediciones')...
+      [OK] Insertados 63 documentos en 0.878 s
+      [CONTEO OFICIAL ATLAS]: 63 documentos en 'ediciones'
+
+[2/4] EXTRACCIÓN Y TRANSFORMACIÓN DE 'paises'...
+      [OK] Extraídos 487 países con NOCs y sedes embebidas en 0.015 s
+      Insertando en MongoDB Atlas (colección 'paises')...
+      [OK] Insertados 487 documentos en 1.460 s
+      [CONTEO OFICIAL ATLAS]: 487 documentos en 'paises'
+
+[3/4] VERIFICACIÓN DE DOCUMENTOS DE MUESTRA:
+
+  • Muestra Colección 'ediciones' (París 2024):
+    - ID: 63
+    - Nombre Juegos: 2024 Summer
+    - Año/Temporada: 2024 Summer
+    - Sede Embebida: {'ciudad': 'Paris', 'pais_codigo': 'FRA', 'pais_nombre': 'France'}
+
+  • Muestra Colección 'paises' (Francia - Sede Histórica):
+    - ID: 78
+    - Nombre: France (Código: FRA)
+    - ¿Es Sede Histórica?: True
+    - Sedes Albergadas (6 ediciones):
+        * 1900 Summer en Paris
+        * 1924 Winter en Chamonix
+        * 1924 Summer en Paris
+        * 1968 Winter en Grenoble
+        * 1992 Winter en Albertville
+        * 2024 Summer en Paris
+    - Comités NOC vinculados: [{'codigo': 'FRA', 'nombre': 'France', 'notas': None}]
+
+  • Muestra Colección 'paises' (Guatemala):
+    - ID: 350
+    - Nombre: Guatemala (Código: GUA)
+    - ¿Es Sede Histórica?: False
+    - Comités NOC vinculados: [{'codigo': 'GUA', 'nombre': 'Guatemala', 'notas': None}]
+
+===========================================================================
+[4/4] DICTAMEN DE RECONCILIACIÓN CENSO FASE 3:
+  • 'ediciones' : Esperados: 63  | Obtenidos en Mongo: 63  --> [PARIDAD 100% OK]
+  • 'paises'    : Esperados: 487 | Obtenidos en Mongo: 487 --> [PARIDAD 100% OK]
+  >>> RESULTADO: FASE 3 COMPLETADA EXITOSAMENTE AL 100%
+===========================================================================

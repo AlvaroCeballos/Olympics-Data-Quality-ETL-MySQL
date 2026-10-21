@@ -1,1 +1,4 @@
 etl/
+.env
+**/.env
+*.env

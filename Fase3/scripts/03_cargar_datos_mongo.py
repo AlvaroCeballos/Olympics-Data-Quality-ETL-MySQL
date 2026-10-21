@@ -23,19 +23,32 @@ from dotenv import load_dotenv
 import mysql.connector
 from pymongo import MongoClient
 
-# Agregar directorio de utilidades de Fase 1 para importar normalize_name (DT-002 / DT-027)
+# Carga de normalize_name de Fase 1 (DT-002 / DT-027) mediante importlib para evitar advertencias del linter
+import importlib.util
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(ROOT_DIR / 'Fase1' / 'etl'))
-try:
-    from utils import normalize_name
-except ImportError:
+_utils_file = ROOT_DIR / 'Fase1' / 'etl' / 'utils.py'
+
+if _utils_file.exists():
+    _spec = importlib.util.spec_from_file_location("utils_fase1", str(_utils_file))
+    _utils_mod = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_utils_mod)
+    normalize_name = _utils_mod.normalize_name
+else:
     import unicodedata, re
+    _CORRUPTED_MAP = {
+        'garca': 'garcia', 'martnez': 'martinez', 'rodrguez': 'rodriguez',
+        'hernndez': 'hernandez', 'snchez': 'sanchez', 'prez': 'perez',
+        'gonzlez': 'gonzalez', 'gmez': 'gomez', 'daz': 'diaz',
+        'jos': 'jose', 'ngel': 'angel', 'mara': 'maria', 'vtor': 'vitor', 'bernab': 'bernabe'
+    }
     def normalize_name(name):
-        if not name: return ''
-        res = unicodedata.normalize('NFKD', str(name).lower())
+        if not name or not isinstance(name, str): return ''
+        res = name.lower().replace('•', ' ').replace('â€¢', ' ')
+        res = unicodedata.normalize('NFKD', res)
         res = ''.join(c for c in res if not unicodedata.combining(c))
         res = re.sub(r'[^\w\s]', ' ', res)
-        return ' '.join(res.split()).strip()
+        tokens = [_CORRUPTED_MAP.get(t, t) for t in res.split()]
+        return ' '.join(tokens).strip()
 
 # Cargar variables de entorno
 ENV_PATH = Path(__file__).resolve().parent.parent / '.env'
