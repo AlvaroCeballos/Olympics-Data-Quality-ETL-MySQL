@@ -115,11 +115,113 @@ El clúster oficial en MongoDB Atlas cuenta con los censos finales certificados:
 
 ---
 
-## 5. Documentación Complementaria
+## 5. Consultas Analíticas (Integrante 3)
 
-* [[doc/ARQUITECTURA_ETL_Y_SCRIPTS.md](file:///d:/Proyectos%20U/Bases%202/Proyecto%201/SBD2B_PROYECT1_2S2026_G18/Fase3/doc/ARQUITECTURA_ETL_Y_SCRIPTS.md)]: Manual técnico detallado de desnormalización, justificación de arquitectura y diseño documental.
-* [[doc/INFORME_VOLUMETRIA_ATLAS.md](file:///d:/Proyectos%20U/Bases%202/Proyecto%201/SBD2B_PROYECT1_2S2026_G18/Fase3/doc/INFORME_VOLUMETRIA_ATLAS.md)]: Informe técnico de dimensionamiento físico, métricas WiredTiger y viabilidad frente al límite de 512 MB.
-* [[logs/](file:///d:/Proyectos%20U/Bases%202/Proyecto%201/SBD2B_PROYECT1_2S2026_G18/Fase3/logs/)]: Directorio con las bitácoras fechadas de cada ejecución.
+Los scripts de consulta implementan los incisos **c** y **d** del enunciado,
+replicando los parámetros de los stored procedures de la Fase 1.
+
+### 5.1 Requisitos
+
+- Python 3.10+ con `pymongo` y `python-dotenv`:
+  ```powershell
+  pip install pymongo python-dotenv
+  ```
+- Archivo `Fase3/.env` con la cadena `MONGO_URI` (gitignored).
+- IP autorizada en el Access List del clúster.
+
+### 5.2 Consulta por atleta (inciso c)
+
+**Archivo:** `consultas/consulta_atleta.py`
+Equivalente a `sp_consultar_atleta(p_nombre, p_anio, p_deporte, p_pais)`.
+
+| Parámetro | Obligatorio | Descripción |
+|---|---|---|
+| `nombre` | Sí | Nombre o fragmento (ej. `"Phelps"`). |
+| `--anio` | No | Año olímpico. |
+| `--deporte` | No | Nombre del deporte. |
+| `--pais` | No | Código NOC (3 letras) o nombre. |
+
+```powershell
+cd Fase3
+python consultas/consulta_atleta.py "Phelps"
+python consultas/consulta_atleta.py "Phelps" --anio 2008
+python consultas/consulta_atleta.py "Bolt" --deporte Athletics
+python consultas/consulta_atleta.py "Barrondo" --pais GUA
+```
+
+**Evidencia:**
+
+![Ejecución de consulta_atleta.py Phelps](doc/imgs/consulta_atleta_phelps.png)
+
+### 5.3 Consulta por país (inciso d)
+
+**Archivo:** `consultas/consulta_pais.py`
+Equivalente a `sp_consultar_pais(p_pais, p_anio_inicio, p_anio_fin, p_solo_medallas)`.
+
+| Parámetro | Obligatorio | Descripción |
+|---|---|---|
+| `pais` | Sí | Código NOC (3 letras) o nombre. |
+| `--anio-inicio` | No | Año inicial del rango. |
+| `--anio-fin` | No | Año final del rango. |
+| `--solo-medallas` | No | Filtrar solo participaciones con medalla. |
+
+```powershell
+python consultas/consulta_pais.py GUA
+python consultas/consulta_pais.py Guatemala
+python consultas/consulta_pais.py USA --anio-inicio 2016 --anio-fin 2024
+python consultas/consulta_pais.py GUA --solo-medallas
+```
+
+**Evidencia:**
+
+![Ejecución de consulta_pais.py GUA --solo-medallas](doc/imgs/consulta_pais_gua.png)
+
+### 5.4 Verificación visual de Atlas
+
+Browse Collections mostrando las 4 colecciones y sus conteos oficiales:
+
+![Colecciones en MongoDB Atlas](doc/imgs/atlas_colecciones.png)
+
+Índices de la colección `resultados`:
+
+![Índices de la colección resultados](doc/imgs/atlas_indices.png)
+
+### 5.5 Scripts complementarios (no exigidos por el enunciado)
+
+Añadidos para medir el rendimiento y validar la paridad funcional contra la
+Fase 1. Evidencian el cumplimiento del requisito de que *"las consultas no
+deben tardar"*.
+
+- **`pruebas/casos_prueba.py`** — Ejecuta 11 consultas representativas
+  (6 de atleta + 5 de país) y reporta el tiempo de cada una.
+  ```powershell
+  python pruebas/casos_prueba.py
+  ```
+  **Evidencia:**
+
+  ![Suite de casos de prueba con tiempos](doc/imgs/casos_prueba_suite.png)
+
+- **`pruebas/prueba_paridad.py`** — Compara los stored procedures de la
+  Fase 1 contra las consultas Mongo de la Fase 3 con los mismos parámetros.
+  Requiere el servidor MySQL local corriendo.
+  ```powershell
+  python pruebas/prueba_paridad.py
+  ```
+  **Evidencia:**
+
+  ![Prueba de paridad MySQL vs MongoDB](doc/imgs/paridad_mysql_mongo.png)
+
+  Resultado: coincidencia del 100 % en consultas por atleta y 99.9 % en
+  consultas por país.
+
+---
+
+## 6. Documentación Complementaria
+
+* [doc/ARQUITECTURA_ETL_Y_SCRIPTS.md](doc/ARQUITECTURA_ETL_Y_SCRIPTS.md): Manual técnico detallado de desnormalización, justificación de arquitectura y diseño documental.
+* [doc/INFORME_VOLUMETRIA_ATLAS.md](doc/INFORME_VOLUMETRIA_ATLAS.md): Informe técnico de dimensionamiento físico, métricas WiredTiger y viabilidad frente al límite de 512 MB.
+* [doc/INFORME_CONSULTAS_Y_RENDIMIENTO.md](doc/INFORME_CONSULTAS_Y_RENDIMIENTO.md): Informe técnico de diseño de las consultas, mediciones de rendimiento y prueba de paridad MySQL vs MongoDB (Integrante 3).
+* [logs/](logs/): Directorio con las bitácoras fechadas de cada ejecución.
 
 ---
 *Grupo 18 — Sistemas de Bases de Datos 2.*
