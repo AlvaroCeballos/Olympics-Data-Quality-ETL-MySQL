@@ -7,14 +7,16 @@
 
 ## 1. Descripción General del Proyecto
 
-Esta tercera fase implementa la migración integral de la base de datos histórica de los Juegos Olímpicos desde un esquema relacional normalizado en MySQL hacia una base de datos documental en **MongoDB Atlas**.
+Esta tercera fase implementa la migración de las entidades principales de la base histórica olímpica desde MySQL hacia una base de datos documental en **MongoDB Atlas**.
 
-El diseño no replica las 12 tablas relacionales, sino que adopta una **arquitectura desnormalizada por caso de uso** organizada en torno a cuatro colecciones optimizadas para responder a las consultas analíticas de atletas y países en orden de milisegundos sin requerir operaciones `$lookup` lentas:
+El diseño no replica las 12 tablas relacionales, sino que adopta una **arquitectura desnormalizada por caso de uso** organizada en torno a cuatro colecciones. Las consultas medidas en las capturas toman desde aproximadamente 0.17 segundos hasta 1.84 segundos, según el caso y la ejecución; los resultados transaccionales se almacenan aplanados para evitar `$lookup` en esas consultas:
 
 * **`ediciones` (63 documentos):** Ediciones olímpicas históricas con la sede y el país organizador embebidos.
-* **`paises` (487 documentos):** Catálogo de naciones con sus códigos NOCs y el historial completo de sedes albergadas.
+* **`paises` (487 documentos):** Catálogo con NOCs y sedes históricas. La serie de población de `poblacion_pais` no está incluida en la carga actual.
 * **`atletas` (190,471 documentos):** Fichas biográficas con `nombre_norm` y el arreglo de `tokens` para búsqueda rápida multikey.
 * **`resultados` (380,548 documentos):** Hechos transaccionales aplanados que consolidan atleta, olimpiada, país, deporte, disciplina, evento, posición y medalla.
+
+> **Estado de revisión:** los conteos de estas cuatro colecciones coinciden con MySQL en los logs disponibles. Aún falta resolver la cobertura de población y algunos atributos de atletas, así como dos diferencias unitarias de bronce en la prueba de paridad por país. Consulta [la documentación técnica](doc/DOCUMENTACION_TECNICA_FASE3.md) antes de considerar la fase completamente cerrada.
 
 ---
 
@@ -188,9 +190,9 @@ Browse Collections mostrando las 4 colecciones y sus conteos oficiales:
 
 ### 5.5 Scripts complementarios (no exigidos por el enunciado)
 
-Añadidos para medir el rendimiento y validar la paridad funcional contra la
-Fase 1. Evidencian el cumplimiento del requisito de que *"las consultas no
-deben tardar"*.
+Añadidos para medir el rendimiento y contrastar las consultas contra la
+Fase 1. Las capturas muestran respuestas en el orden de milisegundos a algunos
+segundos, según la consulta y la ejecución.
 
 - **`pruebas/casos_prueba.py`** — Ejecuta 11 consultas representativas
   (6 de atleta + 5 de país) y reporta el tiempo de cada una.
@@ -211,19 +213,23 @@ deben tardar"*.
 
   ![Prueba de paridad MySQL vs MongoDB](doc/imgs/paridad_mysql_mongo.png)
 
-  Resultado: coincidencia del 100 % en consultas por atleta y 99.9 % en
-  consultas por país.
+  En la captura, los conteos de atleta y Guatemala coinciden; Francia y
+  Estados Unidos presentan una diferencia de un bronce cada uno. El script
+  compara conteos de una muestra, no filas completas, y no demuestra la causa
+  de esas diferencias. La paridad funcional por país debe considerarse
+  pendiente de aclaración; véase la [documentación técnica consolidada](doc/DOCUMENTACION_TECNICA_FASE3.md).
 
 ---
 
 ## 6. Documentación Complementaria
 
-* [doc/INFORME_EXTRACCION_Y_CARGA.md](doc/INFORME_EXTRACCION_Y_CARGA.md): Informe técnico de extracción y carga, aplanado con LEFT JOIN, normalización con `utils.py`, lotes con `pymongo` y paridad censal (Integrante 2).
+* [doc/DOCUMENTACION_TECNICA_FASE3.md](doc/DOCUMENTACION_TECNICA_FASE3.md): Documentación técnica consolidada y revisión de cumplimiento, cobertura y pendientes.
+* [doc/INFORME_EXTRACCION_Y_CARGA.md](doc/INFORME_EXTRACCION_Y_CARGA.md): Informe de extracción y carga ETL (Integrante 2); la utilidad de normalización procede de `Fase1/etl/utils.py`.
 * [doc/ARQUITECTURA_ETL_Y_SCRIPTS.md](doc/ARQUITECTURA_ETL_Y_SCRIPTS.md): Manual técnico detallado de desnormalización, justificación de arquitectura y diseño documental.
 * [doc/INFORME_VOLUMETRIA_ATLAS.md](doc/INFORME_VOLUMETRIA_ATLAS.md): Informe técnico de dimensionamiento físico, métricas WiredTiger y viabilidad frente al límite de 512 MB.
 * [doc/INFORME_CONSULTAS_Y_RENDIMIENTO.md](doc/INFORME_CONSULTAS_Y_RENDIMIENTO.md): Informe técnico de diseño de las consultas, mediciones de rendimiento y prueba de paridad MySQL vs MongoDB (Integrante 3).
 * [logs/](logs/): Directorio con las bitácoras fechadas de cada ejecución.
-* [scripts/ejecucion/](scripts/ejecucion/): Scripts de ejecución secuencial con generación de bitácoras fechadas.
+* [ejecutar_con_log.ps1](ejecutar_con_log.ps1): Auxiliar para ejecutar un script JavaScript con `mongosh` y guardar una bitácora fechada. Los cargadores Python crean sus logs en `logs/`.
 
 ---
 *Grupo 18 — Sistemas de Bases de Datos 2.*

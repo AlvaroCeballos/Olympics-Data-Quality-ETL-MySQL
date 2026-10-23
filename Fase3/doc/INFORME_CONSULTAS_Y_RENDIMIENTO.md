@@ -97,10 +97,13 @@ siguientes:
 | `consulta_pais` — USA 2016–2024 | 272 ms |
 | `consulta_pais` — Guatemala (por nombre) | 180 ms |
 
-Todas las consultas responden por debajo de 1.3 segundos, cumpliendo el
-requisito del enunciado de que las consultas no deben tardar.
+La captura de la suite registra resultados de aproximadamente 169 ms a
+1.24 s. Otra captura de `consulta_atleta.py "Phelps"` registra 1.84 s, por lo
+que el tiempo depende del caso y de la ejecución; no debe garantizarse un
+máximo menor a 1.3 s.
 
-**Evidencia:** `imgs/casos_prueba_suite.png`.
+**Evidencia:** `imgs/casos_prueba_suite.png` y
+`imgs/consulta_atleta_phelps.png`.
 
 ## 6. Prueba de paridad MySQL vs MongoDB
 
@@ -109,20 +112,22 @@ ejecutaron los stored procedures de la Fase 1 (`sp_consultar_atleta` y
 `sp_consultar_pais`) y los scripts equivalentes de la Fase 3 con los mismos
 parámetros, y se compararon los conteos. Resultados:
 
-| Caso | Fichas / Participaciones / Sedes / Medallero | Paridad |
+| Caso | Fichas / participaciones / sedes / medallero | Observación |
 |---|---|---|
-| `atleta` Phelps | 10 fichas, 69 participaciones | 100 % |
-| `atleta` Bolt + Athletics | 10 fichas, 19 participaciones | 100 % |
-| `atleta` Barrondo + GUA | 4 fichas, 8 participaciones | 100 % |
-| `pais` GUA | 0 sedes, 1-1-1 | 100 % |
-| `pais` FRA | 6 sedes, 834-996-1027 (MySQL: 1028) | 99.96 % |
-| `pais` USA 2016–2024 | 8 sedes, 411-308-275 (MySQL: 276) | 99.75 % |
+| `atleta` Phelps | 10 fichas, 69 participaciones | Los conteos visibles coinciden. |
+| `atleta` Bolt + Athletics | 10 fichas, 19 participaciones | Los conteos visibles coinciden. |
+| `atleta` Barrondo + GUA | 4 fichas, 8 participaciones | Los conteos visibles coinciden. |
+| `pais` GUA | 0 sedes, 1-1-1 | Los conteos visibles coinciden. |
+| `pais` FRA | 6 sedes, medallas 834-996-1027; MySQL registra 1,028 bronces | Difiere en un bronce. |
+| `pais` USA 2016–2024 | 8 sedes, medallas 411-308-275; MySQL registra 276 bronces | Difiere en un bronce. |
 
-De las 16 comparaciones realizadas, 14 coinciden exactamente y 2 difieren
-en una fila cada una en el conteo de bronces. Estas diferencias se atribuyen
-a registros fronterizos con el campo `es_empate = TRUE`, interpretados
-ligeramente distinto entre los dos sistemas, y representan menos del 0.1 %
-del total de medallas comparadas.
+La captura presenta dos diferencias unitarias en el total de bronces. En
+informes anteriores se sugirió que podrían relacionarse con `es_empate`, pero
+la prueba no inspecciona las participaciones discrepantes y no confirma esa
+causa. El script compara algunos conteos, no la igualdad de todas las filas,
+y no marca el proceso como fallido automáticamente al hallar diferencias.
+Por ello, la paridad exacta de la consulta por país queda pendiente de
+aclaración.
 
 **Evidencia:** `imgs/paridad_mysql_mongo.png`.
 
@@ -153,8 +158,10 @@ disponibilidad de los datos y los índices que soportan las consultas:
   con `pymongo`, usan los parámetros equivalentes a los stored procedures de
   la Fase 1 y aprovechan los índices compuestos definidos sobre las
   colecciones.
-- Los tiempos de respuesta se mantienen por debajo de 1.3 segundos para
-  todos los casos de prueba, cumpliendo el requisito del enunciado.
-- La paridad funcional con la Fase 1 es del 99.9 % sobre el total de
-  comparaciones realizadas, con las diferencias restantes documentadas y
-  atribuibles a registros fronterizos.
+- Los tiempos documentados varían entre ejecuciones; una captura registra
+  1.84 s para Phelps. Deben comprobarse desde la red y el clúster de la
+  evaluación.
+- La muestra presenta diferencias unitarias de bronce para Francia y
+  Estados Unidos. Su causa aún no está demostrada y la prueba no realiza
+  comparación fila por fila; no corresponde afirmar una paridad funcional
+  total.

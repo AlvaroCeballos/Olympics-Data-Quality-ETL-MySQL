@@ -13,11 +13,13 @@ Para dar cumplimiento al requerimiento técnico de dimensionamiento de almacenam
 
 Se ejecutó una prueba piloto con **10,000 documentos desnormalizados** insertados en la colección `resultados` del clúster oficial de **MongoDB Atlas M0** (`olimpiadas.vowmkp2.mongodb.net`), midiendo los parámetros físicos exactos del motor **WiredTiger** a través del comando administrativo `collStats`.
 
-### Veredicto Técnico:
-**APROBADO PARA ATLAS (VIABILIDAD COMPLETA AL 100%).**  
-* La proyección de almacenamiento total para los **380,548 registros** de participaciones, **190,471 atletas**, **487 países** y **63 ediciones** olímpicas es de aproximadamente **139 MB** (datos comprimidos + índices B-tree).
-* Representa únicamente el **27.1% del límite de 512 MB** asignado a la capa gratuita (M0) de MongoDB Atlas.
-* **Decisión:** **NO es necesario recortar campos** de la información ni recurrir a la contingencia de Docker local. Se preserva íntegramente la fidelidad de la información y la desnormalización funcional planteada.
+### Veredicto técnico de la prueba piloto
+**La proyección registrada es inferior al límite de 512 MB**, por lo que la muestra respalda la viabilidad de Atlas M0 para el volumen estimado. No es una medición física de la carga completa ni certifica que toda la información fuente se haya migrado.
+
+* La bitácora `logs/volumetria_piloto_10k_20261020_232711.log` registra una proyección de **129.35 MB** (25.3%).
+* El cálculo detallado de este informe estima **138.99 MB** (27.15%), usando otra estimación de tamaño/índices para atletas.
+* Ambos cálculos quedan por debajo de 512 MB; documentar el valor como proyección, no como almacenamiento real medido para toda la base.
+* La decisión registrada fue continuar con Atlas sin recortar los documentos de resultados.
 
 ---
 
@@ -64,7 +66,7 @@ El dimensionamiento proyectado frente a la cuota del clúster se resume en los s
 * **Colección `resultados` (380,548 documentos):** 106.09 MB (20.72% del clúster).
 * **Colección `atletas` (190,471 documentos):** 32.40 MB (6.33% del clúster).
 * **Colecciones `paises` y `ediciones` (550 documentos):** 0.50 MB (0.10% del clúster).
-* **Total estimado en disco en Atlas:** 138.99 MB (27.15% del total asignado).
+* **Total estimado en disco en Atlas según este cálculo:** 138.99 MB (27.15% del total asignado). La bitácora del piloto registra otra proyección, 129.35 MB; ambas cifras son estimaciones y no `collStats` de la carga completa.
 * **Capacidad total de la capa gratuita Atlas M0:** 512.00 MB (100.00%).
 * **Margen libre disponible en el clúster:** 373.01 MB (72.85% de espacio remanente).
 
@@ -76,8 +78,8 @@ El dimensionamiento proyectado frente a la cuota del clúster se resume en los s
    * El límite de 16 MB aplica por documento único. Al estructurar las participaciones como documentos atómicos aplanados en `resultados` (~455 bytes), ningún documento sobrepasa los 2 KB.
 2. **Eliminación de `$lookup` lentos:**
    * Al embeber el país, atleta, evento y medalla directamente en cada participación, las consultas analíticas no requerirán costosas operaciones de join en memoria.
-3. **Indexación Eficiente:**
-   * Los índices compuestos (`idx_resultados_atleta_anio`, `idx_resultados_pais_anio_deporte`, etc.) representan ~49 MB, cabiendo holgadamente en la memoria RAM asignada al clúster para responder en menos de 50 milisegundos.
+3. **Indexación:**
+   * La proyección de índices compuestos para `resultados` es de aproximadamente 49.47 MB. Esto es una estimación de almacenamiento; las bitácoras de `explain` muestran tiempos variables y no permiten garantizar respuestas menores a 50 ms para toda consulta.
 
 ---
 *Informe técnico certificado — Grupo 18.*

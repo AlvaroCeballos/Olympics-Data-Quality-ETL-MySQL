@@ -57,7 +57,8 @@ La base de datos se estructura en cuatro colecciones documentales:
   * `es_sede_historica`: Booleano (`true` / `false`) que indica si el país albergó alguna edición olímpica.
   * `sedes_historicas`: Arreglo de subdocumentos con cada una de las ediciones albergadas, conteniendo `anio`, `temporada` y `ciudad`.
   * `nocs`: Arreglo de comités olímpicos asociados con `codigo`, `nombre` y `notas`.
-* **Beneficio Técnico:** Resuelve de manera inmediata el **Requerimiento (d)** del proyecto (*"desplegar si ha sido sede en alguna ocasión y qué años"*). Una sola lectura al documento del país retorna el listado de años y ciudades anfitrionas sin recorrer millones de participaciones.
+* **Cobertura pendiente:** aunque el plan de trabajo define población histórica por país, el cargador actual no consulta `poblacion_pais` ni la incorpora a estos documentos.
+* **Beneficio Técnico:** Resuelve el historial de sedes del **Requerimiento (d)** (*"desplegar si ha sido sede en alguna ocasión y qué años"*). Una lectura del país retorna las sedes y ciudades documentadas.
 
 ### Bloque Colección: `atletas` (190,471 documentos)
 * **Entidad Pivote:** Ficha biográfica maestra del deportista olímpico.
@@ -72,7 +73,7 @@ La base de datos se estructura en cuatro colecciones documentales:
   * `pais_nacimiento`: Subdocumento con `codigo` y `nombre` del país de nacimiento.
   * `altura_cm` y `peso_kg`: Métricas antropométricas base.
   * `afiliacion`, `apodo`, `titulo`: Metadatos preservados de la data cruda original.
-* **Beneficio Técnico:** Mediante el índice multikey sobre `tokens`, el script de consulta por atleta puede encontrar coincidencias exactas o parciales por nombre o apellido en menos de 5 milisegundos.
+* **Índice multikey:** `idx_atletas_tokens` existe y se valida con un filtro literal sobre `tokens`. Sin embargo, `consultas/consulta_atleta.py` actualmente busca con expresiones regulares en `nombre`, `nombre_completo` y `nombre_norm`; no consulta `tokens`. Por tanto, la comprobación separada del índice no demuestra que la consulta interactiva use ese índice ni que responda en menos de 5 ms. Las capturas muestran tiempos variables, hasta aproximadamente 1.84 s.
 
 ### Bloque Colección: `resultados` (380,548 documentos)
 * **Entidad Pivote:** Hecho transaccional aplanado de cada participación olímpica.

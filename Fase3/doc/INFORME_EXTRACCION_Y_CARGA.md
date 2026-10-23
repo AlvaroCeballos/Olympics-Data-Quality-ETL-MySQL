@@ -15,7 +15,7 @@ El pipeline da estricto cumplimiento a los requerimientos normativos del proyect
 * **Certificación de la Base Origen:** Auditoría censal exhaustiva de las 12 tablas relacionales e integridad referencial de claves foráneas antes de iniciar la migración.
 * **Aplanado Desnormalizado con LEFT JOIN:** Construcción de la consulta maestra de extracción que consolida en una sola estructura documental las entidades transaccionales y dimensionales.
 * **Transformación y Carga en Lotes con `pymongo`:** Generación y carga paralela de las cuatro colecciones diana (`ediciones`, `paises`, `atletas` y `resultados`) mediante lotes de memoria optimizados.
-* **Limpieza Lingüística y Generación de Tokens:** Aplicación de la función `normalize_name` de `utils.py` sobre los nombres de los atletas, calculando el atributo `nombre_norm` y el arreglo de indexación multikey `tokens`.
+* **Limpieza Lingüística y Generación de Tokens:** Aplicación de `normalize_name` desde `Fase1/etl/utils.py` sobre los nombres de atletas, calculando `nombre_norm` y el arreglo `tokens` para su índice multikey.
 * **Bitácoras y Trazabilidad Cronológica:** Generación automatizada de logs con sello de fecha y hora para cada etapa del proceso.
 * **Reconciliación Censal Cruzada:** Validación 1-a-1 de los conteos entre MySQL y MongoDB Atlas para atletas, participaciones, ediciones, países y distribución de medallas.
 
@@ -234,11 +234,19 @@ Todos los scripts utilizados para la extracción, transformación, prueba de vol
 * **`Fase3/scripts/00_auditoria_censo_mysql.py`:** Certificación censal de las 12 tablas y 13 claves foráneas en MySQL.
 * **`Fase3/scripts/03_prueba_volumetria_10k.py`:** Extracción de prueba con LEFT JOIN y proyección matemática WiredTiger.
 * **`Fase3/scripts/01_cargar_ediciones_paises.py`:** Extracción y carga con desnormalización de ediciones y catálogo de países.
-* **`Fase3/scripts/02_cargar_atletas.py`:** Normalización con `utils.py`, cálculo de tokens multikey y carga en lotes de 190,471 atletas.
-* **`Fase3/scripts/04_cargar_resultados.py`:** Extracción desnormalizada mediante 9 LEFT JOIN, keyset pagination y carga en lotes de 380,548 participaciones.
+* **`Fase3/scripts/02_cargar_atletas.py`:** Normalización con la utilidad de `Fase1/etl/utils.py`, cálculo de tokens multikey y carga en lotes de 190,471 atletas. El documento generado actualmente no copia los campos `orden_nombre`, `latitud` ni `longitud` del esquema fuente.
+* **`Fase3/scripts/04_cargar_resultados.py`:** Extracción desnormalizada mediante joins requeridos y opcionales, keyset pagination y carga en lotes de 380,548 participaciones.
 * **`Fase3/scripts/05_reconciliacion_cruzada.py`:** Verificación censal cruzada, paridad de medallas y auditoría de índices.
 * **`Fase3/scripts/03_cargar_datos_mongo.py`:** Módulo auxiliar con las funciones de limpieza BSON y carga dinámica de normalización.
-* **`Fase3/scripts/ejecucion/`:** Directorio que contiene los ejecutables de corrida y verificación paso a paso con registro de bitácora en tiempo real.
+* **`Fase3/ejecutar_con_log.ps1`:** Auxiliar para ejecutar scripts JavaScript de `mongosh` y guardar una bitácora fechada. Los scripts Python de carga crean bitácoras en `Fase3/logs/`.
 
 ---
-*Informe técnico de extracción y carga — Integrante 2, Grupo 18.*
+
+## 9. Notas de cobertura
+
+El censo de MySQL incluye **16,930 filas** en `poblacion_pais`, pero los cargadores actuales no leen esta tabla ni la migran. Asimismo, el plan de trabajo de Fase 3 describe población en la colección `paises`; por tanto, la paridad indicada en este informe se refiere a las colecciones/campos realmente reconciliados, no a todos los datos del esquema relacional.
+
+El constructor de atletas también omite `orden_nombre`, `latitud` y `longitud`, que existen en el esquema de Fase 1. La documentación técnica consolidada de la fase detalla estas diferencias y las discrepancias de la prueba de paridad por país en `DOCUMENTACION_TECNICA_FASE3.md`.
+
+---
+*Informe técnico de extracción y carga — Integrante 2, Grupo 18.**
